@@ -3,7 +3,7 @@
 from pathlib import Path
 from typing import Protocol
 
-from shesha.storage.base import ParsedDocument
+from shesha.models import ParsedDocument
 
 
 class DocumentParser(Protocol):

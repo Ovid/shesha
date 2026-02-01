@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pdfplumber
 
-from shesha.storage.base import ParsedDocument
+from shesha.models import ParsedDocument
 
 
 class PdfParser:

@@ -1,19 +1,9 @@
 """Storage backend protocol and data classes."""
 
-from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Protocol
 
-
-@dataclass
-class ParsedDocument:
-    """A parsed document ready for storage and querying."""
-
-    name: str
-    content: str
-    format: str
-    metadata: dict[str, str | int | float | bool]
-    char_count: int
-    parse_warnings: list[str] = field(default_factory=list)
+from shesha.models import ParsedDocument
 
 
 class StorageBackend(Protocol):
@@ -35,8 +25,16 @@ class StorageBackend(Protocol):
         """Check if a project exists."""
         ...
 
-    def store_document(self, project_id: str, doc: ParsedDocument) -> None:
-        """Store a parsed document in a project."""
+    def store_document(
+        self, project_id: str, doc: ParsedDocument, raw_path: Path | None = None
+    ) -> None:
+        """Store a parsed document in a project.
+
+        Args:
+            project_id: The project to store the document in.
+            doc: The parsed document to store.
+            raw_path: Optional path to the original file for raw storage.
+        """
         ...
 
     def get_document(self, project_id: str, doc_name: str) -> ParsedDocument:
@@ -54,3 +52,7 @@ class StorageBackend(Protocol):
     def load_all_documents(self, project_id: str) -> list[ParsedDocument]:
         """Load all documents in a project for querying."""
         ...
+
+
+# Re-export ParsedDocument for backwards compatibility
+__all__ = ["ParsedDocument", "StorageBackend"]

@@ -2,8 +2,6 @@
 
 from pathlib import Path
 
-import pytest
-
 from shesha.parser.base import DocumentParser
 from shesha.parser.registry import ParserRegistry
 from shesha.storage.base import ParsedDocument

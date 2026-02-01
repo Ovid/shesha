@@ -1,6 +1,7 @@
 """Storage backend for Shesha."""
 
-from shesha.storage.base import ParsedDocument, StorageBackend
+from shesha.models import ParsedDocument
+from shesha.storage.base import StorageBackend
 from shesha.storage.filesystem import FilesystemStorage
 
-__all__ = ["ParsedDocument", "StorageBackend", "FilesystemStorage"]
+__all__ = ["FilesystemStorage", "ParsedDocument", "StorageBackend"]

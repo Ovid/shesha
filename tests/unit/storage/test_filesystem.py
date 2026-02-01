@@ -4,7 +4,12 @@ from pathlib import Path
 
 import pytest
 
-from shesha.storage.base import ParsedDocument
+from shesha.exceptions import (
+    DocumentNotFoundError,
+    ProjectExistsError,
+    ProjectNotFoundError,
+)
+from shesha.models import ParsedDocument
 from shesha.storage.filesystem import FilesystemStorage
 
 
@@ -42,7 +47,7 @@ class TestProjectOperations:
     def test_create_duplicate_project_raises(self, storage: FilesystemStorage):
         """Creating a project that exists raises an error."""
         storage.create_project("existing")
-        with pytest.raises(ValueError, match="already exists"):
+        with pytest.raises(ProjectExistsError):
             storage.create_project("existing")
 
 
@@ -116,7 +121,7 @@ class TestDocumentOperations:
     def test_get_nonexistent_document_raises(self, storage: FilesystemStorage):
         """Getting a nonexistent document raises an error."""
         storage.create_project("empty-project")
-        with pytest.raises(ValueError, match="not found"):
+        with pytest.raises(DocumentNotFoundError):
             storage.get_document("empty-project", "missing.txt")
 
     def test_store_document_nonexistent_project_raises(self, storage: FilesystemStorage):
@@ -129,5 +134,5 @@ class TestDocumentOperations:
             char_count=7,
             parse_warnings=[],
         )
-        with pytest.raises(ValueError, match="does not exist"):
+        with pytest.raises(ProjectNotFoundError):
             storage.store_document("no-such-project", doc)

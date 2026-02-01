@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from shesha.storage.base import ParsedDocument
+from shesha.models import ParsedDocument
 
 # Map extensions to language names
 EXTENSION_TO_LANGUAGE = {

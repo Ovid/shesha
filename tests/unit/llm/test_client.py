@@ -2,8 +2,6 @@
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from shesha.llm.client import LLMClient, LLMResponse
 
 
@@ -19,9 +17,7 @@ class TestLLMClient:
         )
 
         client = LLMClient(model="gpt-4")
-        response = client.complete(
-            messages=[{"role": "user", "content": "Hi"}]
-        )
+        response = client.complete(messages=[{"role": "user", "content": "Hi"}])
 
         assert isinstance(response, LLMResponse)
         assert response.content == "Hello!"

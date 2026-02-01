@@ -4,7 +4,12 @@ import json
 import shutil
 from pathlib import Path
 
-from shesha.storage.base import ParsedDocument
+from shesha.exceptions import (
+    DocumentNotFoundError,
+    ProjectExistsError,
+    ProjectNotFoundError,
+)
+from shesha.models import ParsedDocument
 
 
 class FilesystemStorage:
@@ -25,7 +30,7 @@ class FilesystemStorage:
         """Create a new project."""
         project_path = self._project_path(project_id)
         if project_path.exists():
-            raise ValueError(f"Project '{project_id}' already exists")
+            raise ProjectExistsError(project_id)
         project_path.mkdir()
         (project_path / "docs").mkdir()
         if self.keep_raw_files:
@@ -60,7 +65,7 @@ class FilesystemStorage:
     ) -> None:
         """Store a parsed document in a project."""
         if not self.project_exists(project_id):
-            raise ValueError(f"Project '{project_id}' does not exist")
+            raise ProjectNotFoundError(project_id)
         docs_dir = self._project_path(project_id) / "docs"
         doc_path = docs_dir / f"{doc.name}.json"
         doc_data = {
@@ -82,24 +87,24 @@ class FilesystemStorage:
     def get_document(self, project_id: str, doc_name: str) -> ParsedDocument:
         """Retrieve a document by name."""
         if not self.project_exists(project_id):
-            raise ValueError(f"Project '{project_id}' does not exist")
+            raise ProjectNotFoundError(project_id)
         doc_path = self._project_path(project_id) / "docs" / f"{doc_name}.json"
         if not doc_path.exists():
-            raise ValueError(f"Document '{doc_name}' not found in project '{project_id}'")
+            raise DocumentNotFoundError(project_id, doc_name)
         doc_data = json.loads(doc_path.read_text())
         return ParsedDocument(**doc_data)
 
     def list_documents(self, project_id: str) -> list[str]:
         """List all document names in a project."""
         if not self.project_exists(project_id):
-            raise ValueError(f"Project '{project_id}' does not exist")
+            raise ProjectNotFoundError(project_id)
         docs_dir = self._project_path(project_id) / "docs"
         return [p.stem for p in docs_dir.glob("*.json")]
 
     def delete_document(self, project_id: str, doc_name: str) -> None:
         """Delete a document from a project."""
         if not self.project_exists(project_id):
-            raise ValueError(f"Project '{project_id}' does not exist")
+            raise ProjectNotFoundError(project_id)
         doc_path = self._project_path(project_id) / "docs" / f"{doc_name}.json"
         if doc_path.exists():
             doc_path.unlink()

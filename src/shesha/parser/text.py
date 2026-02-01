@@ -5,7 +5,7 @@ import json
 from io import StringIO
 from pathlib import Path
 
-from shesha.storage.base import ParsedDocument
+from shesha.models import ParsedDocument
 
 
 class TextParser:

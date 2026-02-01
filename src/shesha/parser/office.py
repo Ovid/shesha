@@ -4,7 +4,7 @@ from pathlib import Path
 
 from docx import Document
 
-from shesha.storage.base import ParsedDocument
+from shesha.models import ParsedDocument
 
 
 class DocxParser:
@@ -16,7 +16,7 @@ class DocxParser:
 
     def parse(self, path: Path) -> ParsedDocument:
         """Parse a .docx file and return a ParsedDocument."""
-        doc = Document(path)
+        doc = Document(str(path))
         parts: list[str] = []
 
         # Extract paragraphs
