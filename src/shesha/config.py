@@ -1,0 +1,106 @@
+"""Configuration for Shesha."""
+
+import json
+import os
+from dataclasses import dataclass, field, fields
+from pathlib import Path
+from typing import Any
+
+import yaml
+
+
+@dataclass
+class SheshaConfig:
+    """Configuration for Shesha."""
+
+    # LLM settings
+    model: str = "claude-sonnet-4-20250514"
+    api_key: str | None = None
+
+    # Storage
+    storage_path: str = "./shesha_data"
+    keep_raw_files: bool = True
+
+    # Sandbox
+    pool_size: int = 3
+    container_memory_mb: int = 512
+    execution_timeout_sec: int = 30
+    sandbox_image: str = "shesha-sandbox"
+
+    # RLM behavior
+    max_iterations: int = 20
+    max_output_chars: int = 50000
+
+    # Network whitelist for containers
+    allowed_hosts: list[str] = field(
+        default_factory=lambda: [
+            "api.anthropic.com",
+            "api.openai.com",
+            "generativelanguage.googleapis.com",
+        ]
+    )
+
+    @classmethod
+    def from_env(cls) -> "SheshaConfig":
+        """Create config from environment variables."""
+        return cls(
+            model=os.environ.get("SHESHA_MODEL", cls.model),
+            api_key=os.environ.get("SHESHA_API_KEY"),
+            storage_path=os.environ.get("SHESHA_STORAGE_PATH", cls.storage_path),
+            pool_size=int(os.environ.get("SHESHA_POOL_SIZE", str(cls.pool_size))),
+            max_iterations=int(os.environ.get("SHESHA_MAX_ITERATIONS", str(cls.max_iterations))),
+        )
+
+    @classmethod
+    def from_file(cls, path: Path | str) -> "SheshaConfig":
+        """Create config from a YAML or JSON file."""
+        path = Path(path)
+        content = path.read_text()
+        if path.suffix in {".yaml", ".yml"}:
+            data = yaml.safe_load(content) or {}
+        else:
+            data = json.loads(content)
+        # Filter to only valid fields
+        valid_fields = {f.name for f in fields(cls)}
+        filtered = {k: v for k, v in data.items() if k in valid_fields}
+        return cls(**filtered)
+
+    @classmethod
+    def load(
+        cls,
+        config_path: Path | str | None = None,
+        **overrides: Any,
+    ) -> "SheshaConfig":
+        """Load config with full hierarchy: defaults < file < env < kwargs."""
+        # Start with defaults
+        config_dict: dict[str, Any] = {}
+
+        # Layer 2: File config
+        if config_path:
+            file_config = cls.from_file(config_path)
+            for f in fields(cls):
+                val = getattr(file_config, f.name)
+                if val != f.default:
+                    config_dict[f.name] = val
+
+        # Layer 3: Environment variables
+        env_map = {
+            "SHESHA_MODEL": "model",
+            "SHESHA_API_KEY": "api_key",
+            "SHESHA_STORAGE_PATH": "storage_path",
+            "SHESHA_POOL_SIZE": "pool_size",
+            "SHESHA_MAX_ITERATIONS": "max_iterations",
+        }
+        for env_var, field_name in env_map.items():
+            if env_var in os.environ:
+                env_val: Any = os.environ[env_var]
+                if field_name in {"pool_size", "max_iterations"}:
+                    env_val = int(env_val)
+                config_dict[field_name] = env_val
+
+        # Layer 4: Explicit overrides (highest priority)
+        for k, v in overrides.items():
+            if v is not None:
+                config_dict[k] = v
+
+        return cls(**config_dict)
