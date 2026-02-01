@@ -44,9 +44,11 @@ class ContainerExecutor:
         self._client: docker.DockerClient | None = None
         self._container: Container | None = None
         self._socket: Any = None
+        self._read_buffer: bytes = b""  # Buffer for incomplete Docker frames
 
     def start(self) -> None:
         """Start a container for execution."""
+        self._read_buffer = b""  # Clear read buffer
         self._client = docker.from_env()
         self._container = self._client.containers.run(
             self.image,
@@ -137,17 +139,70 @@ class ContainerExecutor:
             self._socket._sock.sendall(data.encode())
 
     def _read_line(self, timeout: int = 30) -> str:
-        """Read a line from container stdout."""
-        if self._socket:
-            self._socket._sock.settimeout(timeout)
-            data = b""
-            while not data.endswith(b"\n"):
+        """Read a line from container stdout, stripping Docker multiplexed headers."""
+        if not self._socket:
+            raise RuntimeError("No socket connection")
+
+        self._socket._sock.settimeout(timeout)
+
+        # Docker attach socket uses multiplexed format with 8-byte header:
+        # 1 byte stream type (1=stdout, 2=stderr) + 3 padding + 4 byte length
+        # We need to demux the stream properly
+
+        while True:
+            # Check if we have a complete line in the buffer
+            if b"\n" in self._read_buffer:
+                line, self._read_buffer = self._read_buffer.split(b"\n", 1)
+                return line.decode().strip()
+
+            # Need to read more data - read a Docker frame
+            # First, ensure we have at least 8 bytes for the header
+            while len(self._read_buffer) < 8:
                 chunk = self._socket._sock.recv(4096)
                 if not chunk:
-                    break
-                data += chunk
-            return data.decode().strip()
-        raise RuntimeError("No socket connection")
+                    # Connection closed - return what we have
+                    result = self._read_buffer.decode().strip()
+                    self._read_buffer = b""
+                    return result
+                self._read_buffer += chunk
+
+            # Check if this looks like a Docker header
+            if self._read_buffer[0] in (1, 2) and self._read_buffer[1:4] == b"\x00\x00\x00":
+                # Extract payload length from bytes 4-7 (big-endian)
+                payload_len = int.from_bytes(self._read_buffer[4:8], "big")
+
+                # Read until we have the full payload
+                while len(self._read_buffer) < 8 + payload_len:
+                    chunk = self._socket._sock.recv(4096)
+                    if not chunk:
+                        break
+                    self._read_buffer += chunk
+
+                # Extract payload and remove the frame from buffer
+                payload = self._read_buffer[8 : 8 + payload_len]
+                self._read_buffer = self._read_buffer[8 + payload_len :]
+
+                # Add payload to a separate buffer for line-based reading
+                # Check if we now have a complete line
+                if b"\n" in payload:
+                    line, remainder = payload.split(b"\n", 1)
+                    self._read_buffer = remainder + self._read_buffer
+                    return line.decode().strip()
+                else:
+                    # No newline yet, put payload at start of buffer and continue
+                    self._read_buffer = payload + self._read_buffer
+            else:
+                # Not a Docker header - treat as raw data
+                if b"\n" in self._read_buffer:
+                    line, self._read_buffer = self._read_buffer.split(b"\n", 1)
+                    return line.decode().strip()
+                # Read more data
+                chunk = self._socket._sock.recv(4096)
+                if not chunk:
+                    result = self._read_buffer.decode().strip()
+                    self._read_buffer = b""
+                    return result
+                self._read_buffer += chunk
 
     def _send_command(self, command: dict[str, Any], timeout: int = 30) -> dict[str, Any]:
         """Send a JSON command to the container and get response."""

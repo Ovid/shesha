@@ -59,13 +59,19 @@ def handle_llm_query(instruction: str, content: str) -> dict[str, Any]:
 def main() -> None:
     """Main loop: read JSON commands, execute, write JSON responses."""
 
+    # Capture real stdout/stdin before any redirection happens during exec
+    real_stdout = sys.stdout
+    real_stdin = sys.stdin
+
     # Set up the llm_query function in namespace
     def llm_query(instruction: str, content: str) -> str:
         """Request LLM query from host - blocks until response."""
         request = handle_llm_query(instruction, content)
-        print(json.dumps(request), flush=True)
-        # Wait for response from host
-        response_line = sys.stdin.readline()
+        # Use real stdout, not the captured one during exec
+        real_stdout.write(json.dumps(request) + "\n")
+        real_stdout.flush()
+        # Wait for response from host using real stdin
+        response_line = real_stdin.readline()
         response = json.loads(response_line)
         if response.get("action") == "llm_response":
             return str(response["result"])
@@ -94,14 +100,15 @@ def main() -> None:
 
             if action == "execute":
                 result = execute_code(command["code"])
-                # Check if result contains a FinalAnswer or FinalVar
-                if "_return_value_" in NAMESPACE:
-                    rv = NAMESPACE["_return_value_"]
-                    if isinstance(rv, FinalAnswer):
-                        result["final_answer"] = rv.answer
-                    elif isinstance(rv, FinalVar):
-                        result["final_var"] = rv.var_name
-                        result["final_value"] = str(NAMESPACE.get(rv.var_name, ""))
+                # Check if return_value is a FinalAnswer or FinalVar
+                rv = result.get("return_value")
+                if isinstance(rv, FinalAnswer):
+                    result["final_answer"] = rv.answer
+                    result["return_value"] = None  # Not JSON serializable
+                elif isinstance(rv, FinalVar):
+                    result["final_var"] = rv.var_name
+                    result["final_value"] = str(NAMESPACE.get(rv.var_name, ""))
+                    result["return_value"] = None  # Not JSON serializable
                 print(json.dumps(result), flush=True)
 
             elif action == "setup":
