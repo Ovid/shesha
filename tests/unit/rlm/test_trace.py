@@ -1,6 +1,6 @@
 """Tests for trace data classes."""
 
-from shesha.rlm.trace import StepType, TraceStep, Trace, TokenUsage
+from shesha.rlm.trace import StepType, TokenUsage, Trace, TraceStep
 
 
 def test_trace_step_creation():

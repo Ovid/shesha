@@ -2,8 +2,6 @@
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from shesha.sandbox.executor import ContainerExecutor, ExecutionResult
 
 

@@ -1,12 +1,12 @@
 """Tests for Project class."""
 
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
-from shesha.project import Project
 from shesha.models import ParsedDocument
+from shesha.project import Project
 
 
 @pytest.fixture

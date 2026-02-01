@@ -1,22 +1,19 @@
 """Tests for RLM engine."""
 
-import re
 from unittest.mock import MagicMock, patch
 
-import pytest
-
-from shesha.rlm.engine import RLMEngine, QueryResult, extract_code_blocks
+from shesha.rlm.engine import QueryResult, RLMEngine, extract_code_blocks
 
 
 def test_extract_code_blocks_finds_repl():
     """extract_code_blocks finds ```repl blocks."""
-    text = '''Here is some code:
+    text = """Here is some code:
 
 ```repl
 print("hello")
 ```
 
-And more text.'''
+And more text."""
     blocks = extract_code_blocks(text)
     assert len(blocks) == 1
     assert 'print("hello")' in blocks[0]
@@ -24,9 +21,9 @@ And more text.'''
 
 def test_extract_code_blocks_finds_python():
     """extract_code_blocks also finds ```python blocks."""
-    text = '''```python
+    text = """```python
 x = 1
-```'''
+```"""
     blocks = extract_code_blocks(text)
     assert len(blocks) == 1
     assert "x = 1" in blocks[0]
@@ -34,7 +31,7 @@ x = 1
 
 def test_query_result_dataclass():
     """QueryResult stores query results."""
-    from shesha.rlm.trace import Trace, TokenUsage
+    from shesha.rlm.trace import TokenUsage, Trace
 
     result = QueryResult(
         answer="The answer",

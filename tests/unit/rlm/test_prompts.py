@@ -1,6 +1,6 @@
 """Tests for RLM prompts."""
 
-from shesha.rlm.prompts import build_system_prompt, build_subcall_prompt
+from shesha.rlm.prompts import build_subcall_prompt, build_system_prompt
 
 
 def test_system_prompt_contains_security_warning():
