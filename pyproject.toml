@@ -1,0 +1,49 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "shesha"
+version = "0.1.0"
+description = "Recursive Language Models for document querying"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+authors = [{ name = "Shesha Authors" }]
+
+dependencies = [
+    "litellm>=1.0",
+    "docker>=7.0",
+    "pyyaml>=6.0",
+    "pymupdf>=1.24",
+    "python-docx>=1.0",
+    "beautifulsoup4>=4.12",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "ruff>=0.1",
+    "mypy>=1.8",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/shesha"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_return_any = true
+warn_unused_ignores = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
