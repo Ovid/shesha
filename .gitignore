@@ -29,3 +29,4 @@ htmlcov/
 # OS
 .DS_Store
 Thumbs.db
+HANDOFF.md
