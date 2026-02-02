@@ -53,7 +53,9 @@ class ThinkingSpinner:
             time.sleep(0.3)
 
 
-def format_progress(step_type: StepType, iteration: int, content: str) -> str:
+def format_progress(
+    step_type: StepType, iteration: int, content: str, elapsed_seconds: float | None = None
+) -> str:
     """Format a progress message for verbose output."""
     step_names = {
         StepType.CODE_GENERATED: "Generating code",
@@ -64,6 +66,8 @@ def format_progress(step_type: StepType, iteration: int, content: str) -> str:
         StepType.ERROR: "Error",
     }
     step_name = step_names.get(step_type, step_type.value)
+    if elapsed_seconds is not None:
+        return f"  [{elapsed_seconds:.1f}s] [Iteration {iteration + 1}] {step_name}"
     return f"  [Iteration {iteration + 1}] {step_name}"
 
 
@@ -182,12 +186,14 @@ def main() -> None:
         try:
             spinner = ThinkingSpinner()
             spinner.start()
+            query_start_time = time.time()
 
             # Progress callback for verbose mode
             def on_progress(step_type: StepType, iteration: int, content: str) -> None:
                 if args.verbose:
                     spinner.stop()
-                    print(format_progress(step_type, iteration, content))
+                    elapsed = time.time() - query_start_time
+                    print(format_progress(step_type, iteration, content, elapsed_seconds=elapsed))
                     spinner.start()
 
             result = project.query(user_input, on_progress=on_progress)

@@ -164,3 +164,16 @@ class TestProgressFormatting:
         """format_progress handles FINAL_ANSWER step."""
         output = format_progress(StepType.FINAL_ANSWER, iteration=2, content="answer")
         assert "final" in output.lower() or "answer" in output.lower()
+
+    def test_format_progress_shows_elapsed_time(self) -> None:
+        """format_progress includes elapsed time when provided."""
+        output = format_progress(
+            StepType.CODE_GENERATED, iteration=0, content="code", elapsed_seconds=12.5
+        )
+        assert "12.5s" in output or "12.50s" in output
+
+    def test_format_progress_without_elapsed_time(self) -> None:
+        """format_progress works without elapsed time (backward compatible)."""
+        output = format_progress(StepType.CODE_GENERATED, iteration=0, content="code")
+        assert "[Iteration 1]" in output
+        assert "s]" not in output.split("[Iteration")[0]  # No time before Iteration
