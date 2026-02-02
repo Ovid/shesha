@@ -134,3 +134,71 @@ class TestRLMEngine:
         assert StepType.CODE_GENERATED in step_types
         assert StepType.CODE_OUTPUT in step_types
         assert StepType.FINAL_ANSWER in step_types
+
+    @patch("shesha.rlm.engine.LLMClient")
+    def test_engine_returns_error_for_oversized_subcall_content(
+        self,
+        mock_llm_cls: MagicMock,
+    ):
+        """Engine returns error string when subcall content exceeds limit."""
+        from shesha.rlm.trace import TokenUsage, Trace
+
+        # Create engine with small limit for testing
+        engine = RLMEngine(model="test-model", max_subcall_content_chars=1000)
+
+        # Call _handle_llm_query directly with oversized content
+        trace = Trace()
+        token_usage = TokenUsage()
+        large_content = "x" * 5000  # 5K chars, exceeds 1K limit
+
+        result = engine._handle_llm_query(
+            instruction="Summarize this",
+            content=large_content,
+            trace=trace,
+            token_usage=token_usage,
+            iteration=0,
+        )
+
+        # Should return error string, not call the LLM
+        assert "Error" in result
+        assert "5,000" in result or "5000" in result  # actual size
+        assert "1,000" in result or "1000" in result  # limit
+        assert "chunk" in result.lower()  # guidance to chunk smaller
+        mock_llm_cls.assert_not_called()  # No sub-LLM call made
+
+    @patch("shesha.rlm.engine.LLMClient")
+    def test_engine_allows_subcall_content_under_limit(
+        self,
+        mock_llm_cls: MagicMock,
+    ):
+        """Engine makes sub-LLM call when content is under limit."""
+        from shesha.rlm.trace import TokenUsage, Trace
+
+        # Mock sub-LLM
+        mock_sub_llm = MagicMock()
+        mock_sub_llm.complete.return_value = MagicMock(
+            content="Analysis result",
+            prompt_tokens=50,
+            completion_tokens=25,
+            total_tokens=75,
+        )
+        mock_llm_cls.return_value = mock_sub_llm
+
+        # Create engine with reasonable limit
+        engine = RLMEngine(model="test-model", max_subcall_content_chars=10000)
+
+        trace = Trace()
+        token_usage = TokenUsage()
+        small_content = "x" * 500  # 500 chars, under 10K limit
+
+        result = engine._handle_llm_query(
+            instruction="Summarize this",
+            content=small_content,
+            trace=trace,
+            token_usage=token_usage,
+            iteration=0,
+        )
+
+        # Should return LLM response
+        assert result == "Analysis result"
+        mock_llm_cls.assert_called_once()  # Sub-LLM was called

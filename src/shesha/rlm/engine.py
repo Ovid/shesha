@@ -41,6 +41,7 @@ class RLMEngine:
         max_iterations: int = 20,
         max_output_chars: int = 50000,
         execution_timeout: int = 30,
+        max_subcall_content_chars: int = 500_000,
     ) -> None:
         """Initialize the RLM engine."""
         self.model = model
@@ -48,6 +49,7 @@ class RLMEngine:
         self.max_iterations = max_iterations
         self.max_output_chars = max_output_chars
         self.execution_timeout = execution_timeout
+        self.max_subcall_content_chars = max_subcall_content_chars
 
     def _handle_llm_query(
         self,
@@ -68,6 +70,22 @@ class RLMEngine:
         )
         if on_progress:
             on_progress(StepType.SUBCALL_REQUEST, iteration, step_content)
+
+        # Check content size limit
+        if len(content) > self.max_subcall_content_chars:
+            error_msg = (
+                f"Error: Content size ({len(content):,} chars) exceeds the sub-LLM limit "
+                f"of {self.max_subcall_content_chars:,} chars. Please chunk the content "
+                f"into smaller pieces and make multiple llm_query calls."
+            )
+            trace.add_step(
+                type=StepType.SUBCALL_RESPONSE,
+                content=error_msg,
+                iteration=iteration,
+            )
+            if on_progress:
+                on_progress(StepType.SUBCALL_RESPONSE, iteration, error_msg)
+            return error_msg
 
         # Build prompt and call LLM
         prompt = build_subcall_prompt(instruction, content)

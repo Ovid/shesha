@@ -69,3 +69,17 @@ def test_system_prompt_contains_batching_guidance():
     # Must encourage batching/efficiency
     assert "batch" in prompt_lower or "minimize" in prompt_lower
     assert "api call" in prompt_lower or "llm_query" in prompt_lower
+
+
+def test_subcall_prompt_no_size_limit():
+    """Subcall prompt passes content through without modification."""
+    large_content = "x" * 600_000  # 600K chars
+
+    prompt = build_subcall_prompt(
+        instruction="Summarize this",
+        content=large_content,
+    )
+
+    # Content should be passed through completely
+    assert large_content in prompt
+    assert "<untrusted_document_content>" in prompt
