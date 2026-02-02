@@ -4,11 +4,15 @@ import sys
 
 from examples.barsoom import (
     BOOKS,
+    HISTORY_WARN_CHARS,
+    HISTORY_WARN_EXCHANGES,
     ThinkingSpinner,
+    format_history_prefix,
     format_progress,
     format_stats,
     is_exit_command,
     parse_args,
+    should_warn_history_size,
 )
 from shesha.rlm.trace import StepType, TokenUsage, Trace
 
@@ -193,15 +197,11 @@ class TestHistoryFormatting:
 
     def test_format_history_prefix_empty(self) -> None:
         """Empty history returns empty string."""
-        from examples.barsoom import format_history_prefix
-
         result = format_history_prefix([])
         assert result == ""
 
     def test_format_history_prefix_single_exchange(self) -> None:
         """Single exchange formats correctly."""
-        from examples.barsoom import format_history_prefix
-
         history = [("Who is Dejah Thoris?", "She is the Princess of Helium.")]
         result = format_history_prefix(history)
 
@@ -212,8 +212,6 @@ class TestHistoryFormatting:
 
     def test_format_history_prefix_multiple_exchanges(self) -> None:
         """Multiple exchanges format with correct numbering."""
-        from examples.barsoom import format_history_prefix
-
         history = [
             ("Question one?", "Answer one."),
             ("Question two?", "Answer two."),
@@ -234,8 +232,6 @@ class TestHistoryWarning:
 
     def test_should_warn_at_exchange_limit(self) -> None:
         """Warn when exchange count reaches threshold."""
-        from examples.barsoom import HISTORY_WARN_EXCHANGES, should_warn_history_size
-
         # Just under limit - no warning
         history = [("q", "a") for _ in range(HISTORY_WARN_EXCHANGES - 1)]
         assert should_warn_history_size(history) is False
@@ -246,8 +242,6 @@ class TestHistoryWarning:
 
     def test_should_warn_at_char_limit(self) -> None:
         """Warn when character count reaches threshold."""
-        from examples.barsoom import HISTORY_WARN_CHARS, should_warn_history_size
-
         # Create history with large content but few exchanges
         large_answer = "x" * (HISTORY_WARN_CHARS - 100)
         history = [("short question", large_answer)]
@@ -259,6 +253,4 @@ class TestHistoryWarning:
 
     def test_should_warn_empty_history(self) -> None:
         """Empty history should not warn."""
-        from examples.barsoom import should_warn_history_size
-
         assert should_warn_history_size([]) is False
