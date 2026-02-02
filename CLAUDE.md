@@ -49,6 +49,10 @@ make all                         # Format + lint + typecheck + test
 - More code than needed to pass
 - Untested code "because it's simple"
 
+## Code Style
+
+- **Imports at top of file:** All imports must be at the top of the file, not inside functions or methods. If an import cannot be at the top (e.g., circular import, optional dependency), add a comment explaining why.
+
 ## Design Decisions
 
 - Sub-LLM depth = 1 (plain LLM, not recursive) for predictable cost
