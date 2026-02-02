@@ -4,6 +4,12 @@
 
 Shesha implements [Recursive Language Models (RLMs)](https://arxiv.org/abs/2512.24601) - a technique for querying document collections by having an LLM write Python code to explore them in a sandboxed REPL.
 
+See [Sample Session](#sample-session) at the end for a demo of complex multi-document reasoning.
+
+## Alpha Code
+
+So far it seems to work, but it's only been tested with .txt documents and the OpenAI API. It _should_ support PDFs, Work Documents, and other files. Your mileage may very.
+
 ## Prerequisites
 
 - Python 3.12+
@@ -53,6 +59,12 @@ pip install shesha
 ```bash
 git clone https://github.com/Ovid/shesha.git
 cd shesha
+
+# Create and activate a virtual environment
+python3 -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+
+# Install with dev dependencies
 pip install -e ".[dev]"
 ```
 
@@ -154,6 +166,44 @@ for step in result.trace.steps:
     print(f"[{step.type.value}] {step.content[:100]}...")
 ```
 
+## Try the Example
+
+The repo includes an interactive example that lets you query the Barsoom novels (Edgar Rice Burroughs' Mars series, public domain):
+
+```bash
+# Make sure you're in the project directory with venv activated
+cd shesha
+source .venv/bin/activate
+
+# Set your API key
+export SHESHA_API_KEY="your-api-key-here"
+
+# Optional: specify a model (defaults to claude-sonnet-4-20250514)
+export SHESHA_MODEL="gpt-4o"  # or claude-sonnet-4-20250514, gemini/gemini-1.5-pro, etc.
+
+# Run the interactive explorer
+python examples/barsoom.py
+```
+
+On first run, it uploads the 7 Barsoom novels to a local project. Then you can ask questions:
+
+```
+> Who is Dejah Thoris?
+[Thought for 12 seconds]
+Dejah Thoris is the Princess of Helium and the primary love interest of John Carter...
+
+> What weapons are commonly used on Barsoom?
+[Thought for 8 seconds]
+The Martians use a variety of weapons including...
+```
+
+Use `--verbose` for execution stats, or `--prompt "question"` for non-interactive mode:
+
+```bash
+python examples/barsoom.py --verbose
+python examples/barsoom.py --prompt "How does John Carter travel to Mars?"
+```
+
 ## How It Works
 
 1. **Upload**: Documents are parsed and stored in a project
@@ -225,6 +275,66 @@ src/shesha/
     ├── prompts.py       # Hardened system prompts
     └── trace.py         # Execution tracing
 ```
+
+## Sample Session
+
+Here's a real session querying the Barsoom novels, demonstrating three key capabilities:
+
+1. **Guardrails** - Politely refuses out-of-scope questions while explaining why
+2. **Simple lookup** - Quick fact retrieval from the document collection
+3. **Complex multi-document reasoning** - Tracks events across 7 books, orders them chronologically, cites supporting quotes, and identifies continuity conflicts
+
+```
+$ python examples/barsoom.py
+
+Ask questions about the Barsoom series. Type "quit" or "exit" to leave.
+
+> What is the capital of Malawi?
+[Thought for 7 seconds]
+The documents provided are Barsoom (Mars) texts and do not contain information
+about Malawi. I can't find the capital of Malawi in the provided documents.
+
+> Who is the son of Dejah Thoris and John Carter?
+[Thought for 29 seconds]
+The son of Dejah Thoris and John Carter is **Carthoris of Helium**.
+
+> What are the major events in his life, in the order they happened?
+[Thought for 227 seconds]
+1) **Named "Carthoris" in childhood (a deliberate blend of his parents' names)**
+- Key people/places: Carthoris; Dejah Thoris; John Carter; Helium
+- Quote: "so the name that she called me is the one that you desired, a
+  combination of hers and yours—Carthoris."
+
+2) **Has a younger sister, Tara (family context established)**
+- Key people/places: Carthoris; Tara of Helium; John Carter
+- Quote: "'A daughter,' he replied, 'only a little younger than Carthoris,
+  … Tara of Helium.'"
+
+3) **Disappears (triggering prolonged grief and major search expeditions)**
+- Key people/places: Carthoris; Dejah Thoris; Tardos Mors; Helium
+- Quote: "Ever since Carthoris disappeared, Dejah Thoris has grieved and
+  mourned for her lost boy."
+
+...
+
+21) **Develops the destination control compass, sparking a new era of invention**
+- Key people/places: Carthoris; Barsoom's scientists/engineers; Helium
+- Quote: "The perfection of the destination control compass by Carthoris
+  of Helium… marked the beginning of a new era of invention."
+
+...
+
+30) **Later-life stability: Thuvia is his mate; he hunts in Okar with Talu**
+- Key people/places: Carthoris; Thuvia of Ptarth; Talu (Jeddak of Okar)
+- Quote: "Thuvia of Ptarth… while Carthoris, her mate, hunted in Okar."
+
+### Noted conflict across sources
+- **Thuvia's status** conflicts (promised to another vs. called his mate).
+  Resolution: treated as narrative progression—first promised elsewhere,
+  later described as his mate (implying circumstances changed).
+```
+
+The third question demonstrates RLM's strength for complex reasoning: it searched across all 7 novels (~2.8M characters), extracted 30 chronological events with supporting quotes, and identified a continuity conflict between books—the kind of long-context sequential analysis that typically trips up standard LLM approaches.
 
 ## Security
 
