@@ -8,7 +8,37 @@ Shesha implements [Recursive Language Models (RLMs)](https://arxiv.org/abs/2512.
 
 - Python 3.12+
 - Docker (for sandbox execution)
-- An LLM API key (Anthropic, OpenAI, or other LiteLLM-supported provider)
+- An LLM API key (or local Ollama installation)
+
+## Supported LLM Providers
+
+Shesha uses [LiteLLM](https://github.com/BerriAI/litellm) under the hood, giving you access to 100+ LLM providers with a unified interface:
+
+| Provider | Example Model | Environment Variable |
+|----------|---------------|---------------------|
+| **Anthropic** | `claude-sonnet-4-20250514` | `ANTHROPIC_API_KEY` |
+| **OpenAI** | `gpt-4o`, `gpt-4-turbo` | `OPENAI_API_KEY` |
+| **Google** | `gemini/gemini-1.5-pro` | `GEMINI_API_KEY` |
+| **Ollama** | `ollama/llama3`, `ollama/mistral` | (local, no key needed) |
+| **Azure** | `azure/gpt-4` | `AZURE_API_KEY` |
+| **AWS Bedrock** | `bedrock/anthropic.claude-3` | AWS credentials |
+
+See the [LiteLLM documentation](https://docs.litellm.ai/docs/providers) for the full list of supported providers.
+
+### Using Ollama (Local Models)
+
+Run models locally with no API key required:
+
+```bash
+# Start Ollama
+ollama serve
+
+# Pull a model
+ollama pull llama3
+
+# Use with Shesha
+shesha = Shesha(model="ollama/llama3")
+```
 
 ## Installation
 
@@ -60,23 +90,29 @@ export SHESHA_MAX_ITERATIONS="20"               # Max RLM iterations
 ```python
 from shesha import Shesha, SheshaConfig
 
-# Option 1: Direct arguments
-shesha = Shesha(
-    model="claude-sonnet-4-20250514",
-    api_key="your-api-key",
+# Anthropic Claude
+shesha = Shesha(model="claude-sonnet-4-20250514")
+
+# OpenAI GPT-4
+shesha = Shesha(model="gpt-4o", api_key="your-openai-key")
+
+# Google Gemini
+shesha = Shesha(model="gemini/gemini-1.5-pro", api_key="your-gemini-key")
+
+# Ollama (local, no API key needed)
+shesha = Shesha(model="ollama/llama3")
+
+# Full configuration
+config = SheshaConfig(
+    model="gpt-4-turbo",
+    api_key="your-openai-key",
     storage_path="./data",
     pool_size=3,
-)
-
-# Option 2: Config object
-config = SheshaConfig(
-    model="gpt-4",
-    api_key="your-openai-key",
     max_iterations=30,
 )
 shesha = Shesha(config=config)
 
-# Option 3: Load from file
+# Load from file
 config = SheshaConfig.from_file("config.yaml")
 shesha = Shesha(config=config)
 ```
