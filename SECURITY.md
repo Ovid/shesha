@@ -1,6 +1,6 @@
 # Security Policy
 
-Note that your author is I<not> a security expert. I have tried to implement some basic sanity in this project, but you should probably review this carefully.
+Note that your author is *not* a security expert. I have tried to implement some basic sanity in this project, but you should probably review this carefully.
 
 ## Threat Model
 
