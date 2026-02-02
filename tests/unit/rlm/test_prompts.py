@@ -1,6 +1,10 @@
 """Tests for RLM prompts."""
 
-from shesha.rlm.prompts import build_subcall_prompt, build_system_prompt
+from shesha.rlm.prompts import (
+    MAX_SUBCALL_CHARS,
+    build_subcall_prompt,
+    build_system_prompt,
+)
 
 
 def test_system_prompt_contains_security_warning():
@@ -47,28 +51,29 @@ def test_subcall_prompt_wraps_content():
     assert "Summarize this" in prompt
 
 
-def test_system_prompt_contains_sub_llm_capacity_hint():
-    """System prompt tells LLM about sub-LLM's large context capacity."""
+def test_system_prompt_contains_sub_llm_limit():
+    """System prompt tells LLM about sub-LLM character limit."""
     prompt = build_system_prompt(
         doc_count=3,
         total_chars=100000,
         doc_names=["a.txt", "b.txt", "c.txt"],
     )
-    # Must mention ~500K capacity to prevent excessive chunking
-    assert "500K" in prompt or "500k" in prompt
+    # Must mention the limit (500,000 formatted with commas)
+    assert "500,000" in prompt or "500000" in prompt
 
 
-def test_system_prompt_contains_batching_guidance():
-    """System prompt encourages batching documents to minimize API calls."""
+def test_system_prompt_contains_chunking_guidance():
+    """System prompt explains chunking strategy for large documents."""
     prompt = build_system_prompt(
         doc_count=3,
         total_chars=100000,
         doc_names=["a.txt", "b.txt", "c.txt"],
     )
     prompt_lower = prompt.lower()
-    # Must encourage batching/efficiency
-    assert "batch" in prompt_lower or "minimize" in prompt_lower
-    assert "api call" in prompt_lower or "llm_query" in prompt_lower
+    # Must explain chunking strategy
+    assert "chunk" in prompt_lower
+    # Must mention buffer pattern for complex queries
+    assert "buffer" in prompt_lower
 
 
 def test_subcall_prompt_no_size_limit():
@@ -102,3 +107,48 @@ def test_system_prompt_requires_document_grounding():
 
     # Must instruct what to do if info not found
     assert "not found" in prompt_lower or "not contain" in prompt_lower
+
+
+def test_system_prompt_includes_per_document_sizes():
+    """System prompt shows size of each document when doc_sizes provided."""
+    prompt = build_system_prompt(
+        doc_count=3,
+        total_chars=15000,
+        doc_names=["a.txt", "b.txt", "c.txt"],
+        doc_sizes=[5000, 4000, 6000],
+    )
+    # Should show each document with its size
+    assert "context[0]" in prompt
+    assert "a.txt" in prompt
+    assert "5,000" in prompt
+    assert "context[1]" in prompt
+    assert "b.txt" in prompt
+    assert "4,000" in prompt
+
+
+def test_system_prompt_warns_about_oversized_documents():
+    """System prompt warns when a document exceeds the sub-LLM limit."""
+    oversized = MAX_SUBCALL_CHARS + 10000  # Slightly over limit
+    prompt = build_system_prompt(
+        doc_count=2,
+        total_chars=oversized + 100000,
+        doc_names=["small.txt", "large.txt"],
+        doc_sizes=[100000, oversized],
+    )
+    # Should warn about the oversized document
+    assert "EXCEEDS LIMIT" in prompt or "must chunk" in prompt.lower()
+    # The small one should not have a warning
+    assert "small.txt" in prompt
+
+
+def test_system_prompt_explains_error_handling():
+    """System prompt explains how to handle size limit errors."""
+    prompt = build_system_prompt(
+        doc_count=1,
+        total_chars=1000,
+        doc_names=["doc.txt"],
+    )
+    prompt_lower = prompt.lower()
+    # Must explain what to do when hitting limit
+    assert "error" in prompt_lower
+    assert "retry" in prompt_lower or "chunk" in prompt_lower

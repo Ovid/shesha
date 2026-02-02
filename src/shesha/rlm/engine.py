@@ -123,12 +123,14 @@ class RLMEngine:
         if doc_names is None:
             doc_names = [f"doc_{i}" for i in range(len(documents))]
 
-        # Build system prompt
-        total_chars = sum(len(d) for d in documents)
+        # Build system prompt with per-document sizes
+        doc_sizes = [len(d) for d in documents]
+        total_chars = sum(doc_sizes)
         system_prompt = build_system_prompt(
             doc_count=len(documents),
             total_chars=total_chars,
             doc_names=doc_names,
+            doc_sizes=doc_sizes,
         )
 
         # Initialize LLM client
