@@ -1,5 +1,7 @@
 # Security Policy
 
+Note that your author is I<not> a security expert. I have tried to implement some basic sanity in this project, but you should probably review this carefully.
+
 ## Threat Model
 
 Shesha executes LLM-generated code in Docker containers. The primary threats are:
