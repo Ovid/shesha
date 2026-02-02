@@ -12,26 +12,6 @@ from shesha import Shesha
 from shesha.config import SheshaConfig
 from shesha.rlm.trace import StepType, TokenUsage, Trace
 
-# Suppress harmless urllib3 cleanup errors during Python shutdown.
-# When Python exits, objects are garbage collected in arbitrary order. If the
-# underlying file handle gets closed before urllib3's HTTPResponse finalizer
-# runs, it raises "ValueError: I/O operation on closed file". This is harmless
-# (the connection is being closed anyway) but produces ugly output. We suppress
-# only this specific error while letting other unraisable exceptions through.
-_original_unraisablehook = sys.unraisablehook
-
-
-def _suppress_urllib3_cleanup_error(unraisable: sys.UnraisableHookArgs) -> None:
-    if (
-        unraisable.exc_type is ValueError
-        and "I/O operation on closed file" in str(unraisable.exc_value)
-    ):
-        return
-    _original_unraisablehook(unraisable)
-
-
-sys.unraisablehook = _suppress_urllib3_cleanup_error
-
 BOOKS = {
     "barsoom-1.txt": "A Princess of Mars",
     "barsoom-2.txt": "The Gods of Mars",
@@ -154,8 +134,31 @@ def setup_project(shesha: Shesha) -> None:
     print(f"Setup complete! {len(BOOKS)} novels loaded.")
 
 
+def _install_urllib3_cleanup_hook() -> None:
+    """Install hook to suppress harmless urllib3 cleanup errors during shutdown.
+
+    When Python exits, objects are garbage collected in arbitrary order. If the
+    underlying file handle gets closed before urllib3's HTTPResponse finalizer
+    runs, it raises "ValueError: I/O operation on closed file". This is harmless
+    (the connection is being closed anyway) but produces ugly output. We suppress
+    only this specific error while letting other unraisable exceptions through.
+    """
+    original_hook = sys.unraisablehook
+
+    def suppress_urllib3_error(unraisable: sys.UnraisableHookArgs) -> None:
+        if (
+            unraisable.exc_type is ValueError
+            and "I/O operation on closed file" in str(unraisable.exc_value)
+        ):
+            return
+        original_hook(unraisable)
+
+    sys.unraisablehook = suppress_urllib3_error
+
+
 def main() -> None:
     """Main entry point."""
+    _install_urllib3_cleanup_hook()
     args = parse_args()
 
     # Check for API key

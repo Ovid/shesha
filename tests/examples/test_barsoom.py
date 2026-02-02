@@ -1,5 +1,7 @@
 """Tests for the barsoom example."""
 
+import sys
+
 from examples.barsoom import (
     BOOKS,
     ThinkingSpinner,
@@ -9,6 +11,18 @@ from examples.barsoom import (
     parse_args,
 )
 from shesha.rlm.trace import StepType, TokenUsage, Trace
+
+
+class TestModuleImportSideEffects:
+    """Test that module import doesn't have global side effects."""
+
+    def test_import_does_not_install_urllib3_hook(self) -> None:
+        """Importing barsoom should not install the urllib3 cleanup hook."""
+        # Check that the current hook is not the urllib3 suppression hook
+        # (pytest may have its own hook installed, which is fine)
+        hook_name = getattr(sys.unraisablehook, "__name__", "")
+        assert "urllib3" not in hook_name.lower()
+        assert "suppress" not in hook_name.lower()
 
 
 class TestArgumentParsing:
