@@ -173,6 +173,10 @@ For large documents, the LLM can use `llm_query(instruction, content)` to delega
 | Code | `.py`, `.js`, `.ts`, `.go`, `.rs`, `.java`, `.c`, `.cpp`, `.h`, `.hpp` |
 | Documents | `.pdf`, `.docx`, `.html` |
 
+## Development Setup
+
+See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for local tooling and GitHub Copilot setup.
+
 ## Running Tests
 
 ```bash
