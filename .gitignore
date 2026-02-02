@@ -30,3 +30,7 @@ htmlcov/
 .DS_Store
 Thumbs.db
 HANDOFF.md
+
+# Development
+scratch/
+.env
