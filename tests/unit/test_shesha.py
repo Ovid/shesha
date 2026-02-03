@@ -4,6 +4,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from shesha import Shesha
+from shesha.models import RepoProjectResult
 
 
 class TestShesha:
@@ -83,3 +84,85 @@ class TestShesha:
             shesha.stop()
 
             mock_pool.stop.assert_called_once()
+
+
+class TestCreateProjectFromRepo:
+    """Tests for create_project_from_repo method."""
+
+    def test_creates_new_project(self, tmp_path: Path):
+        """create_project_from_repo creates project for new repo."""
+        with patch("shesha.shesha.ContainerPool"):
+            with patch("shesha.shesha.RepoIngester") as MockIngester:
+                mock_ingester = MagicMock()
+                MockIngester.return_value = mock_ingester
+
+                mock_ingester.is_local_path.return_value = True
+                mock_ingester.get_saved_sha.return_value = None
+                mock_ingester.get_local_sha.return_value = "abc123"
+                mock_ingester.list_files.return_value = ["src/main.py"]
+                mock_ingester.repos_dir = tmp_path / "repos"
+
+                shesha = Shesha(model="test-model", storage_path=tmp_path)
+
+                with patch.object(shesha._parser_registry, "find_parser") as mock_find:
+                    mock_parser = MagicMock()
+                    mock_parser.parse.return_value = MagicMock(
+                        name="main.py",
+                        content="content",
+                        format="py",
+                        metadata={},
+                        char_count=7,
+                        parse_warnings=[],
+                    )
+                    mock_find.return_value = mock_parser
+
+                    result = shesha.create_project_from_repo(
+                        url="/path/to/local/repo",
+                        name="my-project",
+                    )
+
+                assert isinstance(result, RepoProjectResult)
+                assert result.status == "created"
+                assert result.project.project_id == "my-project"
+
+    def test_unchanged_when_sha_matches(self, tmp_path: Path):
+        """create_project_from_repo returns unchanged when SHAs match."""
+        with patch("shesha.shesha.ContainerPool"):
+            with patch("shesha.shesha.RepoIngester") as MockIngester:
+                mock_ingester = MagicMock()
+                MockIngester.return_value = mock_ingester
+
+                mock_ingester.is_local_path.return_value = False
+                mock_ingester.get_saved_sha.return_value = "abc123"
+                mock_ingester.get_remote_sha.return_value = "abc123"
+
+                shesha = Shesha(model="test-model", storage_path=tmp_path)
+                shesha._storage.create_project("my-project")
+
+                result = shesha.create_project_from_repo(
+                    url="https://github.com/org/repo",
+                    name="my-project",
+                )
+
+                assert result.status == "unchanged"
+
+    def test_updates_available_when_sha_differs(self, tmp_path: Path):
+        """create_project_from_repo returns updates_available when SHAs differ."""
+        with patch("shesha.shesha.ContainerPool"):
+            with patch("shesha.shesha.RepoIngester") as MockIngester:
+                mock_ingester = MagicMock()
+                MockIngester.return_value = mock_ingester
+
+                mock_ingester.is_local_path.return_value = False
+                mock_ingester.get_saved_sha.return_value = "abc123"
+                mock_ingester.get_remote_sha.return_value = "def456"
+
+                shesha = Shesha(model="test-model", storage_path=tmp_path)
+                shesha._storage.create_project("my-project")
+
+                result = shesha.create_project_from_repo(
+                    url="https://github.com/org/repo",
+                    name="my-project",
+                )
+
+                assert result.status == "updates_available"

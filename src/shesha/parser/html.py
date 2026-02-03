@@ -14,8 +14,19 @@ class HtmlParser:
         """Check if this parser can handle the given file."""
         return path.suffix.lower() in {".html", ".htm"}
 
-    def parse(self, path: Path) -> ParsedDocument:
-        """Parse an HTML file and return a ParsedDocument."""
+    def parse(
+        self,
+        path: Path,
+        include_line_numbers: bool = False,
+        file_path: str | None = None,
+    ) -> ParsedDocument:
+        """Parse an HTML file and return a ParsedDocument.
+
+        Args:
+            path: Path to the file to parse.
+            include_line_numbers: Ignored for HTML files.
+            file_path: Ignored for HTML files.
+        """
         raw_html = path.read_text(encoding="utf-8")
         soup = BeautifulSoup(raw_html, "html.parser")
 

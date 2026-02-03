@@ -14,8 +14,19 @@ class DocxParser:
         """Check if this parser can handle the given file."""
         return path.suffix.lower() == ".docx"
 
-    def parse(self, path: Path) -> ParsedDocument:
-        """Parse a .docx file and return a ParsedDocument."""
+    def parse(
+        self,
+        path: Path,
+        include_line_numbers: bool = False,
+        file_path: str | None = None,
+    ) -> ParsedDocument:
+        """Parse a .docx file and return a ParsedDocument.
+
+        Args:
+            path: Path to the file to parse.
+            include_line_numbers: Ignored for DOCX files.
+            file_path: Ignored for DOCX files.
+        """
         doc = Document(str(path))
         parts: list[str] = []
 

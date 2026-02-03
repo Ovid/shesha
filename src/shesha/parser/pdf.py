@@ -14,8 +14,19 @@ class PdfParser:
         """Check if this parser can handle the given file."""
         return path.suffix.lower() == ".pdf"
 
-    def parse(self, path: Path) -> ParsedDocument:
-        """Parse a PDF file and return a ParsedDocument."""
+    def parse(
+        self,
+        path: Path,
+        include_line_numbers: bool = False,
+        file_path: str | None = None,
+    ) -> ParsedDocument:
+        """Parse a PDF file and return a ParsedDocument.
+
+        Args:
+            path: Path to the file to parse.
+            include_line_numbers: Ignored for PDF files.
+            file_path: Ignored for PDF files.
+        """
         warnings: list[str] = []
         pages_text: list[str] = []
 
