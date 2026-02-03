@@ -217,3 +217,48 @@ class TestSHATracking:
 
             sha = ingester.get_local_sha("my-project")
             assert sha == "abc123def456789"
+
+
+class TestFileListing:
+    """Tests for file listing functionality."""
+
+    def test_list_files_uses_git_ls_files(self, ingester: RepoIngester, tmp_path: Path):
+        """list_files() uses git ls-files."""
+        repo_path = tmp_path / "repos" / "my-project"
+        repo_path.mkdir(parents=True)
+
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(
+                returncode=0,
+                stdout="src/main.py\nREADME.md\ntests/test_main.py\n",
+            )
+
+            files = ingester.list_files("my-project")
+            assert files == ["src/main.py", "README.md", "tests/test_main.py"]
+
+    def test_list_files_with_subdirectory(self, ingester: RepoIngester, tmp_path: Path):
+        """list_files() filters to subdirectory when specified."""
+        repo_path = tmp_path / "repos" / "my-project"
+        repo_path.mkdir(parents=True)
+
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(
+                returncode=0,
+                stdout="src/main.py\nsrc/utils.py\n",
+            )
+
+            files = ingester.list_files("my-project", subdir="src/")
+
+            call_args = mock_run.call_args[0][0]
+            assert "src/" in call_args
+
+    def test_list_files_empty_repo(self, ingester: RepoIngester, tmp_path: Path):
+        """list_files() returns empty list for empty repo."""
+        repo_path = tmp_path / "repos" / "my-project"
+        repo_path.mkdir(parents=True)
+
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0, stdout="")
+
+            files = ingester.list_files("my-project")
+            assert files == []

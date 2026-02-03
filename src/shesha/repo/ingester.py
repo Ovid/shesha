@@ -142,3 +142,32 @@ class RepoIngester:
             return None
 
         return result.stdout.strip()
+
+    def list_files(self, project_id: str, subdir: str | None = None) -> list[str]:
+        """List tracked files in a cloned repository.
+
+        Args:
+            project_id: ID of the cloned repo.
+            subdir: Optional subdirectory to filter to.
+
+        Returns:
+            List of relative file paths.
+        """
+        repo_path = self.repos_dir / project_id
+
+        cmd = ["git", "ls-files"]
+        if subdir:
+            cmd.append(subdir)
+
+        result = subprocess.run(
+            cmd,
+            cwd=repo_path,
+            capture_output=True,
+            text=True,
+        )
+
+        if result.returncode != 0:
+            return []
+
+        files = result.stdout.strip().split("\n")
+        return [f for f in files if f]
