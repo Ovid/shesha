@@ -2,6 +2,7 @@
 
 from shesha.config import SheshaConfig
 from shesha.exceptions import (
+    AuthenticationError,
     DocumentError,
     DocumentNotFoundError,
     NoParserError,
@@ -9,9 +10,11 @@ from shesha.exceptions import (
     ProjectError,
     ProjectExistsError,
     ProjectNotFoundError,
+    RepoError,
+    RepoIngestError,
     SheshaError,
 )
-from shesha.models import ParsedDocument
+from shesha.models import ParsedDocument, RepoProjectResult
 from shesha.project import Project
 from shesha.rlm import ProgressCallback, QueryResult, StepType, TokenUsage, Trace, TraceStep
 from shesha.shesha import Shesha
@@ -28,6 +31,7 @@ __all__ = [
     # Query results
     "ProgressCallback",
     "QueryResult",
+    "RepoProjectResult",
     "Trace",
     "TraceStep",
     "StepType",
@@ -44,4 +48,7 @@ __all__ = [
     "DocumentNotFoundError",
     "ParseError",
     "NoParserError",
+    "RepoError",
+    "AuthenticationError",
+    "RepoIngestError",
 ]
