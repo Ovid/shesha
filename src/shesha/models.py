@@ -29,9 +29,7 @@ class RepoProjectResult:
     files_ingested: int
     files_skipped: int = 0
     warnings: list[str] = field(default_factory=list)
-    _apply_updates_fn: Callable[[], "RepoProjectResult"] | None = field(
-        default=None, repr=False
-    )
+    _apply_updates_fn: Callable[[], "RepoProjectResult"] | None = field(default=None, repr=False)
 
     def apply_updates(self) -> "RepoProjectResult":
         """Pull changes and re-ingest. Only valid when status is 'updates_available'."""

@@ -160,9 +160,7 @@ class RepoIngester:
         repo_path = self.repos_dir / project_id
         return self.list_files_from_path(repo_path, subdir)
 
-    def list_files_from_path(
-        self, repo_path: Path, subdir: str | None = None
-    ) -> list[str]:
+    def list_files_from_path(self, repo_path: Path, subdir: str | None = None) -> list[str]:
         """List tracked files in a repository at the given path.
 
         Args:
