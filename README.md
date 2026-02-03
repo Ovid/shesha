@@ -4,13 +4,11 @@
 
 Shesha implements [Recursive Language Models (RLMs)](https://arxiv.org/abs/2512.24601) - a technique for querying document collections by having an LLM write Python code to explore them in a sandboxed REPL.
 
-[Shesha](https://en.wikipedia.org/wiki/Shesha), also known as Ananta, is a Hindu deity who embodies the concept of infinity and the eternal cycle of existence. He is famously depicted with a thousand heads that support the planets of the universe, representing a foundational stability that allows for the maintenance of vast, complex structures. As the celestial couch of the preserver deity Vishnu, he remains constant even as the world undergoes cycles of creation and dissolution, mirroring the ability of recursive models to manage essentially unbounded-length reasoning chains.
-
 See [Sample Session](#sample-session) at the end for a demo of complex multi-document reasoning.
 
 ## Alpha Code
 
-So far it seems to work, but it's only been tested with .txt documents and the OpenAI API. It _should_ support PDFs, Work Documents, and other files. Your mileage may very.
+So far it seems to work, but it's only been tested with .txt documents and the OpenAI API. It _should_ support PDFs, Word Documents, and other files. Your mileage may very.
 
 ## Prerequisites
 
@@ -429,6 +427,11 @@ See [SECURITY.md](SECURITY.md) for details on:
 - Prompt injection defenses
 - Docker sandbox isolation
 - Network policies
+
+## Who is Shesha?
+
+[Shesha](https://en.wikipedia.org/wiki/Shesha), also known as Ananta, is a Hindu deity who embodies the concept of infinity and the eternal cycle of existence. He is famously depicted with a thousand heads that support the planets of the universe, representing a foundational stability that allows for the maintenance of vast, complex structures. As the celestial couch of the preserver deity Vishnu, he remains constant even as the world undergoes cycles of creation and dissolution, mirroring the ability of recursive models to manage essentially unbounded-length reasoning chains.
+
 
 ## License
 

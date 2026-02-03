@@ -4,6 +4,8 @@ import time
 from dataclasses import dataclass, field
 from enum import Enum
 
+from shesha.security.redaction import RedactionConfig, redact
+
 
 class StepType(Enum):
     """Types of steps in an RLM trace."""
@@ -66,3 +68,26 @@ class Trace:
         )
         self.steps.append(step)
         return step
+
+    def redacted(self, config: RedactionConfig | None = None) -> "Trace":
+        """Return a copy with secrets redacted from all steps.
+
+        Args:
+            config: Redaction configuration (uses defaults if None)
+
+        Returns:
+            New Trace with redacted content
+        """
+        redacted_steps = []
+        for step in self.steps:
+            redacted_steps.append(
+                TraceStep(
+                    type=step.type,
+                    content=redact(step.content, config),
+                    timestamp=step.timestamp,
+                    iteration=step.iteration,
+                    tokens_used=step.tokens_used,
+                    duration_ms=step.duration_ms,
+                )
+            )
+        return Trace(steps=redacted_steps)
