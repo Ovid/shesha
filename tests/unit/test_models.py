@@ -2,6 +2,8 @@
 
 from unittest.mock import MagicMock
 
+import pytest
+
 from shesha.models import RepoProjectResult
 
 
@@ -54,3 +56,39 @@ class TestRepoProjectResult:
             files_ingested=10,
         )
         assert result.status == "updates_available"
+
+    def test_apply_updates_stores_callback(self):
+        """RepoProjectResult stores apply_updates callback."""
+        mock_project = MagicMock()
+        callback_called = []
+
+        def mock_callback():
+            callback_called.append(True)
+            return RepoProjectResult(
+                project=mock_project,
+                status="created",
+                files_ingested=15,
+            )
+
+        result = RepoProjectResult(
+            project=mock_project,
+            status="updates_available",
+            files_ingested=10,
+            _apply_updates_fn=mock_callback,
+        )
+
+        updated = result.apply_updates()
+        assert callback_called == [True]
+        assert updated.files_ingested == 15
+
+    def test_apply_updates_raises_when_unchanged(self):
+        """apply_updates raises ValueError when status is not 'updates_available'."""
+        mock_project = MagicMock()
+        result = RepoProjectResult(
+            project=mock_project,
+            status="unchanged",
+            files_ingested=10,
+        )
+
+        with pytest.raises(ValueError, match="only valid when status is 'updates_available'"):
+            result.apply_updates()
