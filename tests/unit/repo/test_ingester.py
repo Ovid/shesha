@@ -1,5 +1,6 @@
 """Tests for RepoIngester."""
 
+import json
 import os
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -163,3 +164,56 @@ class TestGitClone:
                     url="https://github.com/org/nonexistent",
                     project_id="my-project",
                 )
+
+
+class TestSHATracking:
+    """Tests for SHA tracking functionality."""
+
+    def test_save_sha_creates_file(self, ingester: RepoIngester, tmp_path: Path):
+        """save_sha() creates metadata file with SHA."""
+        ingester.save_sha("my-project", "abc123def456")
+
+        meta_path = tmp_path / "repos" / "my-project" / "_repo_meta.json"
+        assert meta_path.exists()
+        data = json.loads(meta_path.read_text())
+        assert data["head_sha"] == "abc123def456"
+
+    def test_get_saved_sha(self, ingester: RepoIngester, tmp_path: Path):
+        """get_saved_sha() returns stored SHA."""
+        (tmp_path / "repos" / "my-project").mkdir(parents=True)
+        meta_path = tmp_path / "repos" / "my-project" / "_repo_meta.json"
+        meta_path.write_text(json.dumps({"head_sha": "abc123"}))
+
+        sha = ingester.get_saved_sha("my-project")
+        assert sha == "abc123"
+
+    def test_get_saved_sha_missing_returns_none(self, ingester: RepoIngester):
+        """get_saved_sha() returns None if no metadata."""
+        sha = ingester.get_saved_sha("nonexistent-project")
+        assert sha is None
+
+    def test_get_remote_sha(self, ingester: RepoIngester):
+        """get_remote_sha() calls git ls-remote."""
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(
+                returncode=0,
+                stdout="abc123def456789\tHEAD\n",
+            )
+
+            sha = ingester.get_remote_sha("https://github.com/org/repo")
+            assert sha == "abc123def456789"
+            assert "ls-remote" in mock_run.call_args[0][0]
+
+    def test_get_local_sha(self, ingester: RepoIngester, tmp_path: Path):
+        """get_local_sha() returns HEAD SHA from local repo."""
+        repo_path = tmp_path / "repos" / "my-project"
+        repo_path.mkdir(parents=True)
+
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(
+                returncode=0,
+                stdout="abc123def456789\n",
+            )
+
+            sha = ingester.get_local_sha("my-project")
+            assert sha == "abc123def456789"

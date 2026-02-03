@@ -1,5 +1,6 @@
 """Git repository ingester."""
 
+import json
 import os
 import re
 import shutil
@@ -96,3 +97,48 @@ class RepoIngester:
             netloc = f"{token}@{parsed.netloc}"
             return urlunparse(parsed._replace(netloc=netloc))
         return url
+
+    def save_sha(self, project_id: str, sha: str) -> None:
+        """Save the HEAD SHA for a project."""
+        repo_path = self.repos_dir / project_id
+        repo_path.mkdir(parents=True, exist_ok=True)
+        meta_path = repo_path / "_repo_meta.json"
+        meta_path.write_text(json.dumps({"head_sha": sha}))
+
+    def get_saved_sha(self, project_id: str) -> str | None:
+        """Get the saved HEAD SHA for a project."""
+        meta_path = self.repos_dir / project_id / "_repo_meta.json"
+        if not meta_path.exists():
+            return None
+        data = json.loads(meta_path.read_text())
+        sha = data.get("head_sha")
+        return str(sha) if sha is not None else None
+
+    def get_remote_sha(self, url: str, token: str | None = None) -> str | None:
+        """Get the HEAD SHA from remote repository."""
+        cmd = ["git", "ls-remote", url, "HEAD"]
+        result = subprocess.run(cmd, capture_output=True, text=True)
+
+        if result.returncode != 0:
+            return None
+
+        parts = result.stdout.strip().split()
+        return parts[0] if parts else None
+
+    def get_local_sha(self, project_id: str) -> str | None:
+        """Get the HEAD SHA from a local cloned repo."""
+        repo_path = self.repos_dir / project_id
+        if not repo_path.exists():
+            return None
+
+        result = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=repo_path,
+            capture_output=True,
+            text=True,
+        )
+
+        if result.returncode != 0:
+            return None
+
+        return result.stdout.strip()
