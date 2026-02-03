@@ -68,6 +68,8 @@ class FilesystemStorage:
             raise ProjectNotFoundError(project_id)
         docs_dir = self._project_path(project_id) / "docs"
         doc_path = docs_dir / f"{doc.name}.json"
+        # Create parent directories for nested paths (e.g., src/main.py.json)
+        doc_path.parent.mkdir(parents=True, exist_ok=True)
         doc_data = {
             "name": doc.name,
             "content": doc.content,
@@ -99,7 +101,15 @@ class FilesystemStorage:
         if not self.project_exists(project_id):
             raise ProjectNotFoundError(project_id)
         docs_dir = self._project_path(project_id) / "docs"
-        return [p.stem for p in docs_dir.glob("*.json")]
+        # Use rglob to find nested documents (e.g., src/main.py.json)
+        # Return the relative path without the .json extension
+        doc_names = []
+        for p in docs_dir.rglob("*.json"):
+            rel_path = p.relative_to(docs_dir)
+            # Remove the .json extension to get the document name
+            doc_name = str(rel_path)[:-5]  # Remove ".json"
+            doc_names.append(doc_name)
+        return doc_names
 
     def delete_document(self, project_id: str, doc_name: str) -> None:
         """Delete a document from a project."""

@@ -128,6 +128,10 @@ class RepoIngester:
     def get_local_sha(self, project_id: str) -> str | None:
         """Get the HEAD SHA from a local cloned repo."""
         repo_path = self.repos_dir / project_id
+        return self.get_sha_from_path(repo_path)
+
+    def get_sha_from_path(self, repo_path: Path) -> str | None:
+        """Get the HEAD SHA from a repository at the given path."""
         if not repo_path.exists():
             return None
 
@@ -154,7 +158,20 @@ class RepoIngester:
             List of relative file paths.
         """
         repo_path = self.repos_dir / project_id
+        return self.list_files_from_path(repo_path, subdir)
 
+    def list_files_from_path(
+        self, repo_path: Path, subdir: str | None = None
+    ) -> list[str]:
+        """List tracked files in a repository at the given path.
+
+        Args:
+            repo_path: Path to the git repository.
+            subdir: Optional subdirectory to filter to.
+
+        Returns:
+            List of relative file paths.
+        """
         cmd = ["git", "ls-files"]
         if subdir:
             cmd.append(subdir)

@@ -183,7 +183,7 @@ class Shesha:
         """Handle create_project_from_repo for existing project."""
         saved_sha = self._repo_ingester.get_saved_sha(name)
         if self._repo_ingester.is_local_path(url):
-            current_sha = self._repo_ingester.get_local_sha(name)
+            current_sha = self._repo_ingester.get_sha_from_path(Path(url).expanduser())
         else:
             current_sha = self._repo_ingester.get_remote_sha(url, token)
 
@@ -232,12 +232,13 @@ class Shesha:
         if not is_update:
             self._storage.create_project(name)
 
-        if self._repo_ingester.is_local_path(url):
+        is_local = self._repo_ingester.is_local_path(url)
+        if is_local:
             repo_path = Path(url).expanduser()
         else:
             repo_path = self._repo_ingester.repos_dir / name
 
-        files = self._repo_ingester.list_files(name, subdir=path)
+        files = self._repo_ingester.list_files_from_path(repo_path, subdir=path)
         files_ingested = 0
         files_skipped = 0
         warnings: list[str] = []
@@ -265,7 +266,7 @@ class Shesha:
                 files_skipped += 1
                 warnings.append(f"Failed to parse {file_path}: {e}")
 
-        sha = self._repo_ingester.get_local_sha(name)
+        sha = self._repo_ingester.get_sha_from_path(repo_path)
         if sha:
             self._repo_ingester.save_sha(name, sha)
 
