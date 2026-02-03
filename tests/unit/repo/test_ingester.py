@@ -1,6 +1,8 @@
 """Tests for RepoIngester."""
 
+import os
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -48,3 +50,43 @@ class TestRepoIngester:
     def test_detect_host_local(self, ingester: RepoIngester):
         """detect_host returns None for local paths."""
         assert ingester.detect_host("/home/user/repo") is None
+
+
+class TestTokenResolution:
+    """Tests for token resolution logic."""
+
+    def test_explicit_token_takes_precedence(self, ingester: RepoIngester):
+        """Explicit token parameter wins over env vars."""
+        with patch.dict(os.environ, {"GITHUB_TOKEN": "env_token"}):
+            token = ingester.resolve_token(
+                url="https://github.com/org/repo",
+                explicit_token="explicit_token",
+            )
+            assert token == "explicit_token"
+
+    def test_github_env_token(self, ingester: RepoIngester):
+        """GITHUB_TOKEN env var used for github.com."""
+        with patch.dict(os.environ, {"GITHUB_TOKEN": "gh_token"}, clear=True):
+            token = ingester.resolve_token(
+                url="https://github.com/org/repo",
+                explicit_token=None,
+            )
+            assert token == "gh_token"
+
+    def test_gitlab_env_token(self, ingester: RepoIngester):
+        """GITLAB_TOKEN env var used for gitlab.com."""
+        with patch.dict(os.environ, {"GITLAB_TOKEN": "gl_token"}, clear=True):
+            token = ingester.resolve_token(
+                url="https://gitlab.com/org/repo",
+                explicit_token=None,
+            )
+            assert token == "gl_token"
+
+    def test_no_token_returns_none(self, ingester: RepoIngester):
+        """Returns None when no token available."""
+        with patch.dict(os.environ, {}, clear=True):
+            token = ingester.resolve_token(
+                url="https://github.com/org/repo",
+                explicit_token=None,
+            )
+            assert token is None

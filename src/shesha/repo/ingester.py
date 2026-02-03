@@ -1,5 +1,6 @@
 """Git repository ingester."""
 
+import os
 import re
 from pathlib import Path
 from urllib.parse import urlparse
@@ -7,6 +8,13 @@ from urllib.parse import urlparse
 
 class RepoIngester:
     """Handles git repository cloning, updating, and file extraction."""
+
+    # Host to environment variable mapping
+    HOST_TO_ENV_VAR = {
+        "github.com": "GITHUB_TOKEN",
+        "gitlab.com": "GITLAB_TOKEN",
+        "bitbucket.org": "BITBUCKET_TOKEN",
+    }
 
     def __init__(self, storage_path: Path | str) -> None:
         """Initialize with storage path for cloned repos."""
@@ -32,5 +40,20 @@ class RepoIngester:
         parsed = urlparse(url)
         if parsed.netloc:
             return parsed.netloc
+
+        return None
+
+    def resolve_token(self, url: str, explicit_token: str | None) -> str | None:
+        """Resolve authentication token for a URL.
+
+        Priority: explicit token > env var > None (system git auth)
+        """
+        if explicit_token:
+            return explicit_token
+
+        host = self.detect_host(url)
+        if host and host in self.HOST_TO_ENV_VAR:
+            env_var = self.HOST_TO_ENV_VAR[host]
+            return os.environ.get(env_var)
 
         return None
