@@ -73,3 +73,27 @@ make all                         # Format + lint + typecheck + test
 - Max iterations = 20 (configurable)
 - Container pool with 3 warm containers
 - Documents organized into projects
+
+## Changelog & Versioning
+
+**CHANGELOG.md must be updated with every user-visible change.**
+
+### Adding Changelog Entries
+
+Add entries under `[Unreleased]` using these categories:
+- **Added** - New features
+- **Changed** - Changes to existing functionality
+- **Deprecated** - Features to be removed in future
+- **Removed** - Removed features
+- **Fixed** - Bug fixes
+- **Security** - Security-related changes
+
+### Release Workflow
+
+Version numbers are derived from git tags via `hatch-vcs`. To release:
+
+1. Move `[Unreleased]` entries to new version section: `[X.Y.Z] - YYYY-MM-DD`
+2. Add fresh `## [Unreleased]` section at top
+3. Commit the changelog update
+4. Create git tag: `git tag vX.Y.Z`
+5. Push with tags: `git push && git push --tags`
