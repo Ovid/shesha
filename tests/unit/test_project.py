@@ -117,10 +117,10 @@ class TestProject:
         assert call_kwargs.get("doc_names") == ["doc.txt"]
         assert call_kwargs.get("question") == "test question"
 
-    def test_query_passes_storage_and_project_id_for_tracing(
+    def test_query_passes_none_storage_for_non_filesystem_backend(
         self, mock_storage: MagicMock, mock_registry: MagicMock
     ):
-        """Query passes storage and project_id to engine for trace writing."""
+        """Query passes None for storage when backend is not FilesystemStorage."""
         mock_engine = MagicMock()
         mock_engine.query.return_value = MagicMock(answer="test answer")
 
