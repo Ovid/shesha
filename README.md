@@ -1,14 +1,16 @@
 # Shesha
 
-**Recursive Language Models for Document Querying**
+**Ask complex questions across large document collections—and get answers with citations**
 
-Shesha implements [Recursive Language Models (RLMs)](https://arxiv.org/abs/2512.24601) - a technique for querying document collections by having an LLM write Python code to explore them in a sandboxed REPL.
+Shesha lets AI explore your documents the way a researcher would: reading, searching, cross-referencing, and iterating until it finds the answer. Unlike simple RAG that retrieves chunks, Shesha reasons across your entire corpus.
 
-See [Sample Session](#sample-session) at the end for a demo of complex multi-document reasoning.
+**Why this matters:** [Recursive Language Models (RLMs)](https://arxiv.org/abs/2512.24601) give LLMs effectively unlimited context and dramatically better long-horizon reasoning. The AI writes Python code to actively explore your documents in a secure sandbox, iterating until confident in the answer—no context window limits, no lost information.
+
+See [Sample Session](#sample-session) for a demo: tracking 30 chronological events across 7 novels with supporting quotes.
 
 ## Alpha Code
 
-So far it seems to work, but it's only been tested with .txt documents and the OpenAI API. It _should_ support PDFs, Word Documents, and other files. Your mileage may very.
+So far it seems to work, but it's only been tested with .txt documents and the OpenAI API. It _should_ support PDFs, Word Documents, and other files. Your mileage may vary.
 
 ## Prerequisites
 
