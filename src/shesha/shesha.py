@@ -126,8 +126,20 @@ class Shesha:
         """List all projects."""
         return self._storage.list_projects()
 
-    def delete_project(self, project_id: str) -> None:
-        """Delete a project."""
+    def delete_project(self, project_id: str, *, cleanup_repo: bool = True) -> None:
+        """Delete a project and optionally its cloned repository.
+
+        Args:
+            project_id: Project to delete.
+            cleanup_repo: If True (default), also removes cloned repo data
+                for remote repositories. Has no effect for projects
+                created from local paths.
+        """
+        if cleanup_repo:
+            source_url = self._repo_ingester.get_source_url(project_id)
+            if source_url and not self._repo_ingester.is_local_path(source_url):
+                self._repo_ingester.delete_repo(project_id)
+
         self._storage.delete_project(project_id)
 
     def get_project_info(self, project_id: str) -> ProjectInfo:

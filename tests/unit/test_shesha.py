@@ -115,6 +115,57 @@ class TestShesha:
 
             mock_pool.stop.assert_called_once()
 
+    def test_delete_project_cleans_up_remote_repo(self, tmp_path: Path):
+        """delete_project removes cloned repo for remote projects by default."""
+        with patch("shesha.shesha.docker"), patch("shesha.shesha.ContainerPool"):
+            with patch("shesha.shesha.RepoIngester") as mock_ingester_cls:
+                mock_ingester = MagicMock()
+                mock_ingester_cls.return_value = mock_ingester
+
+                mock_ingester.get_source_url.return_value = "https://github.com/org/repo"
+                mock_ingester.is_local_path.return_value = False
+
+                shesha = Shesha(model="test-model", storage_path=tmp_path)
+                shesha._storage.create_project("to-delete")
+
+                shesha.delete_project("to-delete")
+
+                mock_ingester.delete_repo.assert_called_once_with("to-delete")
+
+    def test_delete_project_skips_cleanup_for_local_repo(self, tmp_path: Path):
+        """delete_project does not call delete_repo for local repos."""
+        with patch("shesha.shesha.docker"), patch("shesha.shesha.ContainerPool"):
+            with patch("shesha.shesha.RepoIngester") as mock_ingester_cls:
+                mock_ingester = MagicMock()
+                mock_ingester_cls.return_value = mock_ingester
+
+                mock_ingester.get_source_url.return_value = "/path/to/local/repo"
+                mock_ingester.is_local_path.return_value = True
+
+                shesha = Shesha(model="test-model", storage_path=tmp_path)
+                shesha._storage.create_project("local-project")
+
+                shesha.delete_project("local-project")
+
+                mock_ingester.delete_repo.assert_not_called()
+
+    def test_delete_project_respects_cleanup_repo_false(self, tmp_path: Path):
+        """delete_project skips repo cleanup when cleanup_repo=False."""
+        with patch("shesha.shesha.docker"), patch("shesha.shesha.ContainerPool"):
+            with patch("shesha.shesha.RepoIngester") as mock_ingester_cls:
+                mock_ingester = MagicMock()
+                mock_ingester_cls.return_value = mock_ingester
+
+                mock_ingester.get_source_url.return_value = "https://github.com/org/repo"
+                mock_ingester.is_local_path.return_value = False
+
+                shesha = Shesha(model="test-model", storage_path=tmp_path)
+                shesha._storage.create_project("to-delete")
+
+                shesha.delete_project("to-delete", cleanup_repo=False)
+
+                mock_ingester.delete_repo.assert_not_called()
+
 
 class TestCreateProjectFromRepo:
     """Tests for create_project_from_repo method."""
