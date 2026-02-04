@@ -33,6 +33,28 @@ class TestDockerAvailability:
             assert "Docker" in error_msg
             assert "not running" in error_msg or "start" in error_msg.lower()
 
+    def test_raises_helpful_error_when_socket_not_found(self, tmp_path: Path):
+        """Shesha raises helpful error mentioning Podman when socket not found.
+
+        Podman users get FileNotFoundError when DOCKER_HOST isn't set. The error
+        message should guide them to set DOCKER_HOST.
+        """
+        from docker.errors import DockerException
+
+        with patch("shesha.shesha.docker") as mock_docker:
+            # This is the exact error pattern Podman users see
+            mock_docker.from_env.side_effect = DockerException(
+                "Error while fetching server API version: "
+                "('Connection aborted.', FileNotFoundError(2, 'No such file or directory'))"
+            )
+
+            with pytest.raises(RuntimeError) as exc_info:
+                Shesha(model="test-model", storage_path=tmp_path)
+
+            error_msg = str(exc_info.value)
+            assert "DOCKER_HOST" in error_msg
+            assert "Podman" in error_msg or "podman" in error_msg
+
 
 class TestShesha:
     """Tests for Shesha class."""

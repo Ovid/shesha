@@ -95,9 +95,17 @@ class Shesha:
             client = docker.from_env()
             client.close()
         except DockerException as e:
-            if "Connection refused" in str(e):
+            error_str = str(e)
+            if "Connection refused" in error_str:
                 raise RuntimeError(
                     "Docker is not running. Please start Docker Desktop and try again."
+                ) from e
+            if "No such file or directory" in error_str:
+                raise RuntimeError(
+                    "No Docker-compatible socket found. "
+                    "If you're using Podman, set DOCKER_HOST to Podman's socket:\n"
+                    '  export DOCKER_HOST="unix://$(podman machine inspect '
+                    "--format '{{.ConnectionInfo.PodmanSocket.Path}}')\""
                 ) from e
             raise
 
