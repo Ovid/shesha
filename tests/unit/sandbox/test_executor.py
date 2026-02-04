@@ -14,6 +14,30 @@ class TestProtocolError:
 
         err = ProtocolError("test message")
         assert str(err) == "test message"
+
+
+class TestProtocolLimits:
+    """Tests for protocol limit constants."""
+
+    def test_max_buffer_size_exists(self):
+        """MAX_BUFFER_SIZE constant is defined."""
+        from shesha.sandbox.executor import MAX_BUFFER_SIZE
+
+        assert MAX_BUFFER_SIZE == 10 * 1024 * 1024  # 10 MB
+
+    def test_max_line_length_exists(self):
+        """MAX_LINE_LENGTH constant is defined."""
+        from shesha.sandbox.executor import MAX_LINE_LENGTH
+
+        assert MAX_LINE_LENGTH == 1 * 1024 * 1024  # 1 MB
+
+    def test_max_read_duration_exists(self):
+        """MAX_READ_DURATION constant is defined."""
+        from shesha.sandbox.executor import MAX_READ_DURATION
+
+        assert MAX_READ_DURATION == 300  # 5 minutes
+
+
 from shesha.security.containers import ContainerSecurityConfig
 
 

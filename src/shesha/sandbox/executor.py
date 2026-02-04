@@ -18,6 +18,12 @@ class ProtocolError(Exception):
     pass
 
 
+# Protocol limits to prevent DoS attacks from malicious containers
+MAX_BUFFER_SIZE = 10 * 1024 * 1024  # 10 MB max buffer
+MAX_LINE_LENGTH = 1 * 1024 * 1024  # 1 MB max single line
+MAX_READ_DURATION = 300  # 5 min total deadline
+
+
 @dataclass
 class ExecutionResult:
     """Result of code execution in sandbox."""
