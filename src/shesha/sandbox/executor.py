@@ -188,6 +188,17 @@ class ContainerExecutor:
                 return_value=None,
                 error=f"Protocol error: invalid JSON from container: {e}",
             )
+        except KeyError as e:
+            # Malformed message missing required fields (e.g., llm_query without
+            # instruction/content). Treat as protocol violation.
+            self.stop()
+            return ExecutionResult(
+                status="error",
+                stdout="",
+                stderr="",
+                return_value=None,
+                error=f"Protocol error: missing required field {e}",
+            )
 
     def _send_raw(self, data: str) -> None:
         """Send raw data to container stdin."""

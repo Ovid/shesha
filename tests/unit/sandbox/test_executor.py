@@ -645,3 +645,26 @@ class TestExecuteProtocolHandling:
         assert "json" in result.error.lower() or "protocol" in result.error.lower()
         # Container should be stopped (invalid output = compromised state)
         mock_stop.assert_called_once()
+
+    def test_execute_handles_malformed_llm_query_as_protocol_error(self):
+        """execute() treats llm_query missing required fields as protocol violation."""
+        from shesha.sandbox.executor import ContainerExecutor
+
+        executor = ContainerExecutor()
+        executor._socket = MagicMock()
+        # Set a handler so we actually try to access the fields
+        executor.llm_query_handler = MagicMock()
+
+        # Malformed llm_query - missing 'instruction' and 'content' fields
+        malformed_response = '{"action": "llm_query"}'
+
+        with patch.object(executor, "_read_line", return_value=malformed_response):
+            with patch.object(executor, "_send_raw"):
+                with patch.object(executor, "stop") as mock_stop:
+                    result = executor.execute("print('hello')")
+
+        # Should return error result, not raise KeyError
+        assert result.status == "error"
+        assert "protocol" in result.error.lower() or "missing" in result.error.lower()
+        # Container should be stopped
+        mock_stop.assert_called_once()
