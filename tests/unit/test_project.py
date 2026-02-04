@@ -149,12 +149,11 @@ class TestProject:
         assert call_kwargs.get("storage") is None
         assert call_kwargs.get("project_id") == "test-project"
 
-    def test_query_passes_filesystem_storage_for_tracing(
-        self, mock_registry: MagicMock
-    ):
+    def test_query_passes_filesystem_storage_for_tracing(self, mock_registry: MagicMock):
         """Query passes FilesystemStorage to engine for trace writing."""
-        from shesha.storage.filesystem import FilesystemStorage
         from unittest.mock import create_autospec
+
+        from shesha.storage.filesystem import FilesystemStorage
 
         mock_engine = MagicMock()
         mock_engine.query.return_value = MagicMock(answer="test answer")

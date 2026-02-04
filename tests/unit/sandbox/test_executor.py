@@ -731,7 +731,7 @@ class TestExecuteProtocolHandling:
 
         # Container sends invalid UTF-8 bytes (e.g., via sys.stdout.buffer)
         # \xff\xfe is invalid UTF-8
-        invalid_utf8 = b"\xff\xfe{\"status\": \"ok\"}\n"
+        invalid_utf8 = b'\xff\xfe{"status": "ok"}\n'
         frame = make_docker_frame(invalid_utf8)
 
         chunks = [frame]

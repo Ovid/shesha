@@ -316,7 +316,10 @@ class ContainerExecutor:
                 if len(self._content_buffer) > MAX_BUFFER_SIZE:
                     raise ProtocolError(f"Content buffer exceeded {MAX_BUFFER_SIZE} bytes")
                 # Check line length limit even without newline (prevents streaming attack)
-                if b"\n" not in self._content_buffer and len(self._content_buffer) > MAX_LINE_LENGTH:
+                if (
+                    b"\n" not in self._content_buffer
+                    and len(self._content_buffer) > MAX_LINE_LENGTH
+                ):
                     raise ProtocolError(
                         f"Line length {len(self._content_buffer)} exceeds max {MAX_LINE_LENGTH}"
                     )
@@ -327,7 +330,10 @@ class ContainerExecutor:
                 if len(self._content_buffer) > MAX_BUFFER_SIZE:
                     raise ProtocolError(f"Content buffer exceeded {MAX_BUFFER_SIZE} bytes")
                 # Check line length limit even without newline (prevents streaming attack)
-                if b"\n" not in self._content_buffer and len(self._content_buffer) > MAX_LINE_LENGTH:
+                if (
+                    b"\n" not in self._content_buffer
+                    and len(self._content_buffer) > MAX_LINE_LENGTH
+                ):
                     raise ProtocolError(
                         f"Line length {len(self._content_buffer)} exceeds max {MAX_LINE_LENGTH}"
                     )
