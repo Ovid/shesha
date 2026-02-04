@@ -1,5 +1,6 @@
 """Tests for sandbox executor."""
 
+import time
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -460,3 +461,49 @@ class TestContainerSecurityIntegration:
         assert call_kwargs["cap_drop"] == ["NET_ADMIN"]
 
         executor.stop()
+
+
+class TestReadDeadline:
+    """Tests for overall deadline in _read_line."""
+
+    def test_read_line_raises_on_deadline_exceeded(self):
+        """_read_line raises ProtocolError when total time exceeds MAX_READ_DURATION."""
+        from shesha.sandbox.executor import ContainerExecutor, ProtocolError
+
+        mock_socket = MagicMock()
+
+        # Simulate slow drip that would exceed deadline
+        call_count = 0
+
+        def mock_recv(size):
+            nonlocal call_count
+            call_count += 1
+            # Return small chunks without newline
+            if call_count < 100:
+                return b"x"
+            return b""
+
+        mock_socket._sock.recv = mock_recv
+        mock_socket._sock.settimeout = MagicMock()
+
+        executor = ContainerExecutor()
+        executor._socket = mock_socket
+        executor._raw_buffer = b""
+        executor._content_buffer = b""
+
+        # Patch time.time to simulate elapsed time exceeding deadline
+        start_time = time.time()
+        call_sequence = [start_time, start_time + 301]  # 301 seconds elapsed
+        time_iter = iter(call_sequence)
+
+        def mock_time():
+            try:
+                return next(time_iter)
+            except StopIteration:
+                return start_time + 400
+
+        with patch("shesha.sandbox.executor.time.time", mock_time):
+            with pytest.raises(ProtocolError) as exc_info:
+                executor._read_line(timeout=5)
+
+        assert "duration" in str(exc_info.value).lower() or "deadline" in str(exc_info.value).lower()

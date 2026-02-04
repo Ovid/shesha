@@ -1,6 +1,7 @@
 """Docker container executor for sandboxed code execution."""
 
 import json
+import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
@@ -187,7 +188,11 @@ class ContainerExecutor:
 
         self._socket._sock.settimeout(timeout)
 
+        start_time = time.time()
+
         while True:
+            if time.time() - start_time > MAX_READ_DURATION:
+                raise ProtocolError(f"Read duration exceeded {MAX_READ_DURATION} seconds")
             # Check if we have a complete line in the content buffer
             if b"\n" in self._content_buffer:
                 line, self._content_buffer = self._content_buffer.split(b"\n", 1)
