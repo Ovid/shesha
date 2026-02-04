@@ -196,6 +196,8 @@ class ContainerExecutor:
             # Check if we have a complete line in the content buffer
             if b"\n" in self._content_buffer:
                 line, self._content_buffer = self._content_buffer.split(b"\n", 1)
+                if len(line) > MAX_LINE_LENGTH:
+                    raise ProtocolError(f"Line length {len(line)} exceeds maximum {MAX_LINE_LENGTH}")
                 return line.decode().strip()
 
             # Need more content - demux from raw buffer or read more data
@@ -218,6 +220,8 @@ class ContainerExecutor:
                         if len(self._content_buffer) > MAX_BUFFER_SIZE:
                             raise ProtocolError(f"Content buffer exceeded {MAX_BUFFER_SIZE} bytes")
                         self._raw_buffer = b""
+                    if len(self._content_buffer) > MAX_LINE_LENGTH:
+                        raise ProtocolError(f"Line length {len(self._content_buffer)} exceeds maximum {MAX_LINE_LENGTH}")
                     result = self._content_buffer.decode().strip()
                     self._content_buffer = b""
                     return result
@@ -259,6 +263,8 @@ class ContainerExecutor:
                 if b"\n" not in self._content_buffer:
                     chunk = self._socket._sock.recv(4096)
                     if not chunk:
+                        if len(self._content_buffer) > MAX_LINE_LENGTH:
+                            raise ProtocolError(f"Line length {len(self._content_buffer)} exceeds maximum {MAX_LINE_LENGTH}")
                         result = self._content_buffer.decode().strip()
                         self._content_buffer = b""
                         return result

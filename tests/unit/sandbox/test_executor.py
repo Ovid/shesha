@@ -463,6 +463,46 @@ class TestContainerSecurityIntegration:
         executor.stop()
 
 
+class TestLineLengthLimit:
+    """Tests for line length limit in _read_line."""
+
+    def test_read_line_raises_on_oversized_line(self):
+        """_read_line raises ProtocolError when line exceeds MAX_LINE_LENGTH."""
+        from shesha.sandbox.executor import (
+            ContainerExecutor,
+            MAX_LINE_LENGTH,
+            ProtocolError,
+        )
+
+        mock_socket = MagicMock()
+
+        # Create a line that exceeds MAX_LINE_LENGTH
+        oversized_line = b"x" * (MAX_LINE_LENGTH + 100) + b"\n"
+        frame = make_docker_frame(oversized_line)
+
+        chunks = [frame]
+        chunk_iter = iter(chunks)
+
+        def mock_recv(size):
+            try:
+                return next(chunk_iter)
+            except StopIteration:
+                return b""
+
+        mock_socket._sock.recv = mock_recv
+        mock_socket._sock.settimeout = MagicMock()
+
+        executor = ContainerExecutor()
+        executor._socket = mock_socket
+        executor._raw_buffer = b""
+        executor._content_buffer = b""
+
+        with pytest.raises(ProtocolError) as exc_info:
+            executor._read_line(timeout=5)
+
+        assert "line" in str(exc_info.value).lower()
+
+
 class TestReadDeadline:
     """Tests for overall deadline in _read_line."""
 
