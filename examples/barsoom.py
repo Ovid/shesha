@@ -1,5 +1,57 @@
 #!/usr/bin/env python3
-"""Interactive Barsoom novel explorer using Shesha."""
+"""Interactive Barsoom novel explorer using Shesha.
+
+This script provides an interactive CLI for exploring Edgar Rice Burroughs'
+Barsoom (Mars) novel series using Shesha's Recursive Language Model (RLM)
+capabilities. The novels are in the public domain and included in the
+test-datasets directory.
+
+The Barsoom series consists of 7 novels:
+    1. A Princess of Mars
+    2. The Gods of Mars
+    3. The Warlord of Mars
+    4. Thuvia, Maid of Mars
+    5. The Chessmen of Mars
+    6. The Master Mind of Mars
+    7. A Fighting Man of Mars
+
+Features:
+    - Automatic setup on first run (uploads all 7 novels)
+    - Conversation history for follow-up questions
+    - Verbose mode with execution stats and progress
+    - Non-interactive mode for scripted queries
+
+Usage:
+    # Interactive mode (sets up on first run)
+    python examples/barsoom.py
+
+    # Force re-upload of novels
+    python examples/barsoom.py --setup
+
+    # Single query (non-interactive)
+    python examples/barsoom.py --prompt "Who is Dejah Thoris?"
+
+    # Verbose mode with execution stats
+    python examples/barsoom.py --verbose
+
+Environment Variables:
+    SHESHA_API_KEY: Required. API key for your LLM provider.
+    SHESHA_MODEL: Optional. Model name (default: claude-sonnet-4-20250514).
+
+Example:
+    $ export SHESHA_API_KEY="your-api-key"
+    $ python examples/barsoom.py
+    Setting up Barsoom project...
+    Uploading: A Princess of Mars (barsoom-1.txt)
+    ...
+    Setup complete! 7 novels loaded.
+
+    Ask questions about the Barsoom series. Type "quit" or "exit" to leave.
+
+    > Who is the son of Dejah Thoris?
+    [Thought for 29 seconds]
+    The son of Dejah Thoris and John Carter is **Carthoris of Helium**.
+"""
 
 import argparse
 import os
@@ -47,7 +99,17 @@ BOOKS = {
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    """Parse command line arguments."""
+    """Parse command line arguments.
+
+    Args:
+        argv: Command line arguments. If None, uses sys.argv.
+
+    Returns:
+        Parsed arguments namespace with:
+            - setup: Force re-upload of novels even if project exists
+            - verbose: Show execution stats after each answer
+            - prompt: Single query for non-interactive mode (optional)
+    """
     parser = argparse.ArgumentParser(description="Explore the Barsoom novels using Shesha RLM")
     parser.add_argument(
         "--setup",
@@ -72,12 +134,28 @@ PROJECT_NAME = "barsoom"
 
 
 def get_datasets_dir() -> Path:
-    """Get the path to the barsoom test datasets directory."""
+    """Get the path to the Barsoom test datasets directory.
+
+    Returns:
+        Path to the test-datasets/barsoom directory, relative to this script's
+        location. The directory contains the 7 Barsoom novels as .txt files.
+    """
     return Path(__file__).parent.parent / "test-datasets" / "barsoom"
 
 
 def setup_project(shesha: Shesha) -> None:
-    """Set up the barsoom project by uploading novels."""
+    """Set up the Barsoom project by uploading all 7 novels.
+
+    Creates a new project named "barsoom" and uploads each novel from the
+    test-datasets directory. Progress is printed for each file uploaded.
+
+    Args:
+        shesha: Initialized Shesha instance to create the project in.
+
+    Note:
+        This overwrites any existing "barsoom" project. The novels total
+        approximately 2.8 million characters across all 7 books.
+    """
     print("Setting up Barsoom project...")
     project = shesha.create_project(PROJECT_NAME)
     datasets_dir = get_datasets_dir()
@@ -91,7 +169,20 @@ def setup_project(shesha: Shesha) -> None:
 
 
 def main() -> None:
-    """Main entry point."""
+    """Main entry point for the Barsoom explorer CLI.
+
+    Orchestrates the complete workflow:
+    1. Validates environment (SHESHA_API_KEY required)
+    2. Initializes Shesha with local storage configuration
+    3. Sets up the project on first run or if --setup is passed
+    4. Handles single query (--prompt) or enters interactive loop
+
+    The interactive loop maintains conversation history for follow-up
+    questions and warns when history grows large.
+
+    Raises:
+        SystemExit: If SHESHA_API_KEY is not set or project cannot be loaded.
+    """
     install_urllib3_cleanup_hook()
     args = parse_args()
 

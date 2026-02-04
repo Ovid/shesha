@@ -1,5 +1,45 @@
 #!/usr/bin/env python3
-"""Interactive git repository explorer using Shesha."""
+"""Interactive git repository explorer using Shesha.
+
+This script provides an interactive CLI for exploring git repositories using
+Shesha's Recursive Language Model (RLM) capabilities. It supports both remote
+repositories (GitHub, GitLab, Bitbucket) and local git repos.
+
+Features:
+    - Interactive picker for previously indexed repositories
+    - Automatic update detection and application
+    - Conversation history for follow-up questions
+    - Verbose mode with execution stats and progress
+
+Usage:
+    # Explore a GitHub repository
+    python examples/repo.py https://github.com/org/repo
+
+    # Explore a local git repository
+    python examples/repo.py /path/to/local/repo
+
+    # Show picker of previously indexed repos
+    python examples/repo.py
+
+    # Auto-apply updates and show verbose stats
+    python examples/repo.py https://github.com/org/repo --update --verbose
+
+Environment Variables:
+    SHESHA_API_KEY: Required. API key for your LLM provider.
+    SHESHA_MODEL: Optional. Model name (default: claude-sonnet-4-20250514).
+
+Example:
+    $ export SHESHA_API_KEY="your-api-key"
+    $ python examples/repo.py https://github.com/Ovid/shesha
+    Loading repository: https://github.com/Ovid/shesha
+    Loaded 42 files.
+
+    Ask questions about the codebase. Type "quit" or "exit" to leave.
+
+    > How does the sandbox execute code?
+    [Thought for 15 seconds]
+    The sandbox executes code in isolated Docker containers...
+"""
 
 from __future__ import annotations
 
@@ -46,7 +86,17 @@ if TYPE_CHECKING:
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    """Parse command line arguments."""
+    """Parse command line arguments.
+
+    Args:
+        argv: Command line arguments. If None, uses sys.argv.
+
+    Returns:
+        Parsed arguments namespace with:
+            - repo: Git repository URL or local path (optional)
+            - update: Whether to auto-apply updates without prompting
+            - verbose: Whether to show execution stats after each answer
+    """
     parser = argparse.ArgumentParser(description="Explore git repositories using Shesha RLM")
     parser.add_argument(
         "repo",
@@ -67,12 +117,29 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 
 def show_picker(shesha: Shesha) -> tuple[str, bool] | None:
-    """Show interactive repo picker.
+    """Show interactive repository picker for previously indexed repos.
+
+    Displays a numbered list of previously indexed repositories and prompts
+    the user to either select one by number or enter a new URL/path.
+
+    Args:
+        shesha: Initialized Shesha instance to query for existing projects.
 
     Returns:
-        None if no projects exist.
-        (project_name, True) if user selected an existing project by number.
-        (url_or_path, False) if user entered a new URL/path.
+        None: If no projects exist in storage.
+        tuple[str, True]: If user selected an existing project (project name).
+        tuple[str, False]: If user entered a new URL/path to index.
+
+    Example:
+        Available repositories:
+          1. org-repo
+          2. another-project
+
+        Enter number or new repo URL: 1
+        -> Returns ("org-repo", True)
+
+        Enter number or new repo URL: https://github.com/new/repo
+        -> Returns ("https://github.com/new/repo", False)
     """
     projects = shesha.list_projects()
     if not projects:
@@ -98,13 +165,36 @@ def show_picker(shesha: Shesha) -> tuple[str, bool] | None:
 
 
 def prompt_for_repo() -> str:
-    """Prompt user to enter a repo URL or path."""
+    """Prompt user to enter a repository URL or local path.
+
+    Called when no previously indexed repositories exist, prompting the user
+    to provide a new repository to index.
+
+    Returns:
+        User-provided repository URL or local filesystem path, stripped of
+        leading/trailing whitespace.
+    """
     print("No repositories loaded yet.")
     return input("Enter repo URL or local path: ").strip()
 
 
 def handle_updates(result: RepoProjectResult, auto_update: bool) -> RepoProjectResult:
-    """Handle update prompting. Returns updated result if applied."""
+    """Handle repository update detection and application.
+
+    When a repository has been previously indexed and changes are detected
+    (new commits), this function either automatically applies updates or
+    prompts the user for confirmation.
+
+    Args:
+        result: The result from create_project_from_repo() containing the
+            project and its current status.
+        auto_update: If True, applies updates without prompting. If False,
+            asks the user whether to apply available updates.
+
+    Returns:
+        The original result if no updates were available or user declined,
+        or a new RepoProjectResult with updated files if updates were applied.
+    """
     if result.status != "updates_available":
         return result
 
@@ -123,7 +213,22 @@ def handle_updates(result: RepoProjectResult, auto_update: bool) -> RepoProjectR
 
 
 def run_interactive_loop(project: Project, verbose: bool) -> None:
-    """Run the interactive question-answer loop."""
+    """Run the interactive question-answer loop for querying the codebase.
+
+    Provides a REPL-style interface where users can ask questions about the
+    indexed repository. Maintains conversation history for follow-up questions
+    and warns when history grows large.
+
+    Args:
+        project: The Shesha project containing the indexed repository.
+        verbose: If True, displays execution stats (time, tokens, trace)
+            and progress updates during query processing.
+
+    Note:
+        The loop continues until the user types "quit", "exit", or presses
+        Ctrl+C/Ctrl+D. Conversation history is maintained in memory and
+        prepended to each query for context.
+    """
     print()
     print('Ask questions about the codebase. Type "quit" or "exit" to leave.')
     print()
@@ -190,7 +295,19 @@ def run_interactive_loop(project: Project, verbose: bool) -> None:
 
 
 def main() -> None:
-    """Main entry point."""
+    """Main entry point for the repository explorer CLI.
+
+    Orchestrates the complete workflow:
+    1. Validates environment (SHESHA_API_KEY required)
+    2. Initializes Shesha with storage configuration
+    3. Determines repository source (argument, picker, or prompt)
+    4. Loads or creates the repository project
+    5. Handles any available updates
+    6. Enters the interactive query loop
+
+    Raises:
+        SystemExit: If SHESHA_API_KEY is not set or Docker is unavailable.
+    """
     install_urllib3_cleanup_hook()
     args = parse_args()
 
