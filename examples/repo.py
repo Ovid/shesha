@@ -142,31 +142,60 @@ def show_picker(shesha: Shesha) -> tuple[str, bool] | None:
         Enter number, 'd<N>' to delete, or new URL: https://github.com/new/repo
         -> Returns ("https://github.com/new/repo", False)
     """
-    projects = shesha.list_projects()
-    if not projects:
-        return None
+    while True:
+        projects = shesha.list_projects()
+        if not projects:
+            return None
 
-    print("Available repositories:")
-    for i, name in enumerate(projects, 1):
-        info = shesha.get_project_info(name)
-        if info.is_local and not info.source_exists:
-            print(f"  {i}. {name} (missing - {info.source_url})")
-        else:
-            print(f"  {i}. {name}")
-    print()
+        print("Available repositories:")
+        project_infos = []
+        for i, name in enumerate(projects, 1):
+            info = shesha.get_project_info(name)
+            project_infos.append(info)
+            if info.is_local and not info.source_exists:
+                print(f"  {i}. {name} (missing - {info.source_url})")
+            else:
+                print(f"  {i}. {name}")
+        print()
 
-    user_input = input("Enter number, 'd<N>' to delete, or new URL: ").strip()
+        user_input = input("Enter number, 'd<N>' to delete, or new URL: ").strip()
 
-    # Check if it's a number selecting an existing project
-    try:
-        num = int(user_input)
-        if 1 <= num <= len(projects):
-            return (projects[num - 1], True)
-    except ValueError:
-        pass
+        # Check for delete command
+        if user_input.lower().startswith("d"):
+            try:
+                num = int(user_input[1:])
+                if 1 <= num <= len(projects):
+                    project_name = projects[num - 1]
+                    info = project_infos[num - 1]
 
-    # Otherwise treat as new URL/path
-    return (user_input, False)
+                    # Determine confirmation message
+                    if info.is_local or info.source_url is None:
+                        msg = f"Delete '{project_name}'? This will remove all indexed data. (y/n): "
+                    else:
+                        msg = (
+                            f"Delete '{project_name}'? "
+                            "This will remove indexed data and cloned repository. (y/n): "
+                        )
+
+                    confirm = input(msg).strip().lower()
+                    if confirm == "y":
+                        shesha.delete_project(project_name)
+                        print(f"Deleted '{project_name}'.")
+                    print()
+                    continue  # Re-show picker
+            except ValueError:
+                pass
+
+        # Check if it's a number selecting an existing project
+        try:
+            num = int(user_input)
+            if 1 <= num <= len(projects):
+                return (projects[num - 1], True)
+        except ValueError:
+            pass
+
+        # Otherwise treat as new URL/path
+        return (user_input, False)
 
 
 def prompt_for_repo() -> str:
