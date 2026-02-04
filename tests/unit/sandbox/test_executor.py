@@ -2,6 +2,8 @@
 
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from shesha.sandbox.executor import ContainerExecutor, ExecutionResult
 
 
@@ -290,6 +292,41 @@ class TestConnectionClose:
 
         # Should return only the valid content, discarding the partial header
         assert result == '{"result": "data"}'
+
+
+class TestBufferLimits:
+    """Tests for buffer size limits in _read_line."""
+
+    def test_read_line_raises_on_buffer_overflow(self):
+        """_read_line raises ProtocolError when buffer exceeds MAX_BUFFER_SIZE."""
+        from shesha.sandbox.executor import MAX_BUFFER_SIZE, ProtocolError
+
+        mock_socket = MagicMock()
+        # Send chunks that exceed MAX_BUFFER_SIZE without a newline
+        chunk_size = 1024 * 1024  # 1 MB chunks
+        chunks_needed = (MAX_BUFFER_SIZE // chunk_size) + 2
+
+        chunk_data = [b"x" * chunk_size for _ in range(chunks_needed)]
+        chunk_iter = iter(chunk_data)
+
+        def mock_recv(size):
+            try:
+                return next(chunk_iter)
+            except StopIteration:
+                return b""
+
+        mock_socket._sock.recv = mock_recv
+        mock_socket._sock.settimeout = MagicMock()
+
+        executor = ContainerExecutor()
+        executor._socket = mock_socket
+        executor._raw_buffer = b""
+        executor._content_buffer = b""
+
+        with pytest.raises(ProtocolError) as exc_info:
+            executor._read_line(timeout=5)
+
+        assert "buffer" in str(exc_info.value).lower()
 
 
 class TestContainerExecutor:

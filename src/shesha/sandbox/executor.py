@@ -210,11 +210,15 @@ class ContainerExecutor:
                     else:
                         # Possibly plain text - add to content buffer
                         self._content_buffer += self._raw_buffer
+                        if len(self._content_buffer) > MAX_BUFFER_SIZE:
+                            raise ProtocolError(f"Content buffer exceeded {MAX_BUFFER_SIZE} bytes")
                         self._raw_buffer = b""
                     result = self._content_buffer.decode().strip()
                     self._content_buffer = b""
                     return result
                 self._raw_buffer += chunk
+                if len(self._raw_buffer) > MAX_BUFFER_SIZE:
+                    raise ProtocolError(f"Raw buffer exceeded {MAX_BUFFER_SIZE} bytes")
 
             # Check if this looks like a Docker header
             if self._raw_buffer[0] in (1, 2) and self._raw_buffer[1:4] == b"\x00\x00\x00":
@@ -227,6 +231,8 @@ class ContainerExecutor:
                     if not chunk:
                         break
                     self._raw_buffer += chunk
+                    if len(self._raw_buffer) > MAX_BUFFER_SIZE:
+                        raise ProtocolError(f"Raw buffer exceeded {MAX_BUFFER_SIZE} bytes")
 
                 # Extract payload and remove the frame from raw buffer
                 payload = self._raw_buffer[8 : 8 + payload_len]
@@ -234,10 +240,14 @@ class ContainerExecutor:
 
                 # Append payload to content buffer (never mix with raw buffer)
                 self._content_buffer += payload
+                if len(self._content_buffer) > MAX_BUFFER_SIZE:
+                    raise ProtocolError(f"Content buffer exceeded {MAX_BUFFER_SIZE} bytes")
             else:
                 # Not a Docker header - treat raw buffer as plain data
                 # This handles non-multiplexed streams
                 self._content_buffer += self._raw_buffer
+                if len(self._content_buffer) > MAX_BUFFER_SIZE:
+                    raise ProtocolError(f"Content buffer exceeded {MAX_BUFFER_SIZE} bytes")
                 self._raw_buffer = b""
 
                 # If still no newline, read more
@@ -248,6 +258,8 @@ class ContainerExecutor:
                         self._content_buffer = b""
                         return result
                     self._raw_buffer += chunk
+                    if len(self._raw_buffer) > MAX_BUFFER_SIZE:
+                        raise ProtocolError(f"Raw buffer exceeded {MAX_BUFFER_SIZE} bytes")
 
     def _send_command(self, command: dict[str, Any], timeout: int = 30) -> dict[str, Any]:
         """Send a JSON command to the container and get response."""
