@@ -126,3 +126,17 @@ class FilesystemStorage:
         """Load all documents in a project for querying."""
         doc_names = self.list_documents(project_id)
         return [self.get_document(project_id, name) for name in doc_names]
+
+    def get_traces_dir(self, project_id: str) -> Path:
+        """Get the traces directory for a project, creating it if needed."""
+        if not self.project_exists(project_id):
+            raise ProjectNotFoundError(project_id)
+        traces_dir = self._project_path(project_id) / "traces"
+        traces_dir.mkdir(exist_ok=True)
+        return traces_dir
+
+    def list_traces(self, project_id: str) -> list[Path]:
+        """List all trace files in a project, sorted by name (oldest first)."""
+        traces_dir = self.get_traces_dir(project_id)
+        traces = list(traces_dir.glob("*.jsonl"))
+        return sorted(traces, key=lambda p: p.name)

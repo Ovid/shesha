@@ -162,3 +162,41 @@ class TestPathTraversalProtection:
         )
         with pytest.raises(PathTraversalError):
             storage.store_document("test-project", doc)
+
+
+class TestTraceOperations:
+    """Tests for trace file operations."""
+
+    def test_get_traces_dir_creates_directory(self, storage: FilesystemStorage) -> None:
+        """get_traces_dir creates traces directory if needed."""
+        storage.create_project("trace-project")
+        traces_dir = storage.get_traces_dir("trace-project")
+        assert traces_dir.exists()
+        assert traces_dir.name == "traces"
+
+    def test_get_traces_dir_nonexistent_project_raises(
+        self, storage: FilesystemStorage
+    ) -> None:
+        """get_traces_dir raises for nonexistent project."""
+        with pytest.raises(ProjectNotFoundError):
+            storage.get_traces_dir("no-such-project")
+
+    def test_list_traces_empty(self, storage: FilesystemStorage) -> None:
+        """list_traces returns empty list when no traces exist."""
+        storage.create_project("empty-traces")
+        assert storage.list_traces("empty-traces") == []
+
+    def test_list_traces_returns_sorted_by_name(
+        self, storage: FilesystemStorage
+    ) -> None:
+        """list_traces returns files sorted by name (oldest first)."""
+        storage.create_project("sorted-traces")
+        traces_dir = storage.get_traces_dir("sorted-traces")
+        # Create files with timestamps in names (older first)
+        (traces_dir / "2026-02-03T10-00-00-000_aaaa1111.jsonl").write_text("{}")
+        (traces_dir / "2026-02-03T10-00-01-000_bbbb2222.jsonl").write_text("{}")
+        (traces_dir / "2026-02-03T10-00-02-000_cccc3333.jsonl").write_text("{}")
+        traces = storage.list_traces("sorted-traces")
+        assert len(traces) == 3
+        assert traces[0].name == "2026-02-03T10-00-00-000_aaaa1111.jsonl"
+        assert traces[2].name == "2026-02-03T10-00-02-000_cccc3333.jsonl"
