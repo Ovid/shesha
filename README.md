@@ -87,15 +87,14 @@ echo '{"action": "ping"}' | docker run -i --rm shesha-sandbox
 
 ### Environment Variables
 
-Set your API key and optionally configure other settings:
+Set your API key and optionally specify a model:
 
 ```bash
 export SHESHA_API_KEY="your-api-key-here"
 export SHESHA_MODEL="claude-sonnet-4-20250514"  # Default model
-export SHESHA_STORAGE_PATH="./shesha_data"      # Where projects are stored
-export SHESHA_POOL_SIZE="3"                     # Warm container count
-export SHESHA_MAX_ITERATIONS="20"               # Max RLM iterations
 ```
+
+See [docs/ENVIRONMENT.md](docs/ENVIRONMENT.md) for all configuration options including Ollama setup and repository authentication.
 
 ### Programmatic Configuration
 
