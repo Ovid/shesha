@@ -529,18 +529,19 @@ class TestReadDeadline:
         executor._raw_buffer = b""
         executor._content_buffer = b""
 
-        # Patch time.time to simulate elapsed time exceeding deadline
-        start_time = time.time()
+        # Patch time.monotonic (not time.time) to simulate elapsed time exceeding deadline
+        # Using monotonic avoids issues with wall-clock jumps (NTP, manual changes)
+        start_time = time.monotonic()
         call_sequence = [start_time, start_time + 301]  # 301 seconds elapsed
         time_iter = iter(call_sequence)
 
-        def mock_time():
+        def mock_monotonic():
             try:
                 return next(time_iter)
             except StopIteration:
                 return start_time + 400
 
-        with patch("shesha.sandbox.executor.time.time", mock_time):
+        with patch("shesha.sandbox.executor.time.monotonic", mock_monotonic):
             with pytest.raises(ProtocolError) as exc_info:
                 executor._read_line(timeout=5)
 

@@ -200,10 +200,10 @@ class ContainerExecutor:
 
         self._socket._sock.settimeout(timeout)
 
-        start_time = time.time()
+        start_time = time.monotonic()
 
         while True:
-            if time.time() - start_time > MAX_READ_DURATION:
+            if time.monotonic() - start_time > MAX_READ_DURATION:
                 raise ProtocolError(f"Read duration exceeded {MAX_READ_DURATION} seconds")
             # Check if we have a complete line in the content buffer
             if b"\n" in self._content_buffer:
