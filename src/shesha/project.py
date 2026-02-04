@@ -1,10 +1,12 @@
 """Project class for managing document collections."""
 
 from pathlib import Path
+from typing import cast
 
 from shesha.parser.registry import ParserRegistry
 from shesha.rlm.engine import ProgressCallback, QueryResult, RLMEngine
 from shesha.storage.base import StorageBackend
+from shesha.storage.filesystem import FilesystemStorage
 
 
 class Project:
@@ -63,11 +65,13 @@ class Project:
             raise RuntimeError("No RLM engine configured for queries")
 
         docs = self._storage.load_all_documents(self.project_id)
+        # Cast to FilesystemStorage for trace writing (TraceWriter uses FS-specific methods)
+        fs_storage = cast(FilesystemStorage, self._storage)
         return self._rlm_engine.query(
             documents=[d.content for d in docs],
             question=question,
             doc_names=[d.name for d in docs],
             on_progress=on_progress,
-            storage=self._storage,
+            storage=fs_storage,
             project_id=self.project_id,
         )
