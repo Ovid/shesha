@@ -11,6 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `Shesha.check_repo_for_updates()` method to check if a cloned repository has updates available
 - `RepoIngester.get_repo_url()` method to retrieve the remote origin URL from a cloned repo
+- `ProjectInfo` dataclass for project metadata (source URL, is_local, source_exists)
+- `Shesha.get_project_info()` method to retrieve project source information
+- Repo picker now shows "(missing - /path)" for local repos that no longer exist
+- Repo picker supports `d<N>` command to delete projects with confirmation
+
+### Changed
+
+- `Shesha.delete_project()` now accepts `cleanup_repo` parameter (default `True`) to also remove cloned repository data for remote repos
 
 ### Fixed
 
