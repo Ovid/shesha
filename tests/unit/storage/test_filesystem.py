@@ -163,6 +163,51 @@ class TestPathTraversalProtection:
         with pytest.raises(PathTraversalError):
             storage.store_document("test-project", doc)
 
+    def test_raw_file_copy_traversal_blocked(self, tmp_path: Path) -> None:
+        """Raw file copy with traversal in doc.name is blocked."""
+        storage = FilesystemStorage(tmp_path, keep_raw_files=True)
+        storage.create_project("test-project")
+
+        # Create a source file
+        source_file = tmp_path / "source.txt"
+        source_file.write_text("content")
+
+        doc = ParsedDocument(
+            name="../../../escape.txt",
+            content="malicious",
+            format="txt",
+            metadata={},
+            char_count=9,
+            parse_warnings=[],
+        )
+        with pytest.raises(PathTraversalError):
+            storage.store_document("test-project", doc, raw_path=source_file)
+
+    def test_raw_file_copy_nested_path_works(self, tmp_path: Path) -> None:
+        """Raw file copy with nested path (e.g., src/main.py) works."""
+        storage = FilesystemStorage(tmp_path, keep_raw_files=True)
+        storage.create_project("test-project")
+
+        # Create a source file
+        source_file = tmp_path / "source.txt"
+        source_file.write_text("content")
+
+        doc = ParsedDocument(
+            name="src/main.py",
+            content="code",
+            format="py",
+            metadata={},
+            char_count=4,
+            parse_warnings=[],
+        )
+        # Should not raise - nested paths are valid
+        storage.store_document("test-project", doc, raw_path=source_file)
+
+        # Verify file was created in correct nested location
+        raw_path = tmp_path / "projects" / "test-project" / "raw" / "src" / "main.py"
+        assert raw_path.exists()
+        assert raw_path.read_text() == "content"
+
 
 class TestTraceOperations:
     """Tests for trace file operations."""

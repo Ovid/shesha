@@ -85,7 +85,9 @@ class FilesystemStorage:
         if self.keep_raw_files and raw_path is not None:
             raw_dir = self._project_path(project_id) / "raw"
             raw_dir.mkdir(exist_ok=True)
-            shutil.copy2(raw_path, raw_dir / doc.name)
+            raw_dest = safe_path(raw_dir, doc.name)
+            raw_dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(raw_path, raw_dest)
 
     def get_document(self, project_id: str, doc_name: str) -> ParsedDocument:
         """Retrieve a document by name."""
