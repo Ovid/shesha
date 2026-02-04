@@ -14,7 +14,7 @@ from shesha.exceptions import (
     RepoIngestError,
     SheshaError,
 )
-from shesha.models import ParsedDocument, QueryContext, RepoProjectResult
+from shesha.models import ParsedDocument, ProjectInfo, QueryContext, RepoProjectResult
 from shesha.project import Project
 from shesha.rlm import ProgressCallback, QueryResult, StepType, TokenUsage, Trace, TraceStep
 from shesha.shesha import Shesha
@@ -40,6 +40,7 @@ __all__ = [
     # Storage
     "FilesystemStorage",
     "ParsedDocument",
+    "ProjectInfo",
     # Exceptions
     "SheshaError",
     "ProjectError",

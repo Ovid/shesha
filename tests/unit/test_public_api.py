@@ -13,3 +13,10 @@ def test_trace_writer_exported_from_rlm() -> None:
     from shesha.rlm import TraceWriter
 
     assert TraceWriter is not None
+
+
+def test_project_info_exported() -> None:
+    """ProjectInfo is exported from the public API."""
+    from shesha import ProjectInfo
+
+    assert ProjectInfo is not None
