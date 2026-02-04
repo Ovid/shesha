@@ -3,6 +3,17 @@
 from unittest.mock import MagicMock, patch
 
 from shesha.sandbox.executor import ContainerExecutor, ExecutionResult
+
+
+class TestProtocolError:
+    """Tests for ProtocolError exception."""
+
+    def test_protocol_error_exists(self):
+        """ProtocolError is importable from executor module."""
+        from shesha.sandbox.executor import ProtocolError
+
+        err = ProtocolError("test message")
+        assert str(err) == "test message"
 from shesha.security.containers import ContainerSecurityConfig
 
 

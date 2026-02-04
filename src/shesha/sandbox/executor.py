@@ -12,6 +12,12 @@ from docker.models.containers import Container
 from shesha.security.containers import DEFAULT_SECURITY, ContainerSecurityConfig
 
 
+class ProtocolError(Exception):
+    """Container protocol violation (oversized data, timeout)."""
+
+    pass
+
+
 @dataclass
 class ExecutionResult:
     """Result of code execution in sandbox."""
