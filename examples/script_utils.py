@@ -4,8 +4,12 @@
 import sys
 import threading
 import time
+from typing import TYPE_CHECKING
 
 from shesha.rlm.trace import StepType, TokenUsage, Trace
+
+if TYPE_CHECKING:
+    from sys import UnraisableHookArgs
 
 # Constants for history size warnings
 HISTORY_WARN_CHARS = 50_000
@@ -120,7 +124,7 @@ def install_urllib3_cleanup_hook() -> None:
     """
     original_hook = sys.unraisablehook
 
-    def suppress_urllib3_error(unraisable: sys.UnraisableHookArgs) -> None:
+    def suppress_urllib3_error(unraisable: "UnraisableHookArgs") -> None:
         if unraisable.exc_type is ValueError and "I/O operation on closed file" in str(
             unraisable.exc_value
         ):
