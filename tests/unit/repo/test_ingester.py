@@ -192,6 +192,42 @@ class TestSHATracking:
         sha = ingester.get_saved_sha("nonexistent-project")
         assert sha is None
 
+    def test_get_repo_url(self, ingester: RepoIngester, tmp_path: Path):
+        """get_repo_url() returns git remote origin URL."""
+        repo_path = tmp_path / "repos" / "my-project"
+        repo_path.mkdir(parents=True)
+
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(
+                returncode=0,
+                stdout="https://github.com/org/repo\n",
+            )
+
+            url = ingester.get_repo_url("my-project")
+            assert url == "https://github.com/org/repo"
+            assert "remote" in mock_run.call_args[0][0]
+            assert "get-url" in mock_run.call_args[0][0]
+
+    def test_get_repo_url_returns_none_when_no_repo(self, ingester: RepoIngester):
+        """get_repo_url() returns None when repo directory doesn't exist."""
+        url = ingester.get_repo_url("nonexistent-project")
+        assert url is None
+
+    def test_get_repo_url_returns_none_when_no_remote(self, ingester: RepoIngester, tmp_path: Path):
+        """get_repo_url() returns None when git remote fails."""
+        repo_path = tmp_path / "repos" / "my-project"
+        repo_path.mkdir(parents=True)
+
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(
+                returncode=1,
+                stdout="",
+                stderr="fatal: No such remote 'origin'",
+            )
+
+            url = ingester.get_repo_url("my-project")
+            assert url is None
+
     def test_get_remote_sha(self, ingester: RepoIngester):
         """get_remote_sha() calls git ls-remote."""
         with patch("subprocess.run") as mock_run:

@@ -346,10 +346,21 @@ def main() -> None:
         if picker_result is None:
             repo_url = prompt_for_repo()
         elif picker_result[1]:
-            # User selected existing project by number
+            # User selected existing project by number - check for updates
             project_name = picker_result[0]
             print(f"Loading project: {project_name}")
-            project = shesha.get_project(project_name)
+            result = shesha.check_repo_for_updates(project_name)
+
+            # Handle status
+            if result.status == "unchanged":
+                print(f"Using cached repository ({result.files_ingested} files).")
+
+            result = handle_updates(result, args.update)
+
+            if result.status == "created":
+                print(f"Updated: {result.files_ingested} files.")
+
+            project = result.project
         else:
             # User entered a new URL/path
             repo_url = picker_result[0]

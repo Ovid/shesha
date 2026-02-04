@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `Shesha.check_repo_for_updates()` method to check if a cloned repository has updates available
+- `RepoIngester.get_repo_url()` method to retrieve the remote origin URL from a cloned repo
+
+### Fixed
+
+- `--update` flag in `examples/repo.py` now works when selecting an existing project from the picker
+
 ## [0.1.0] - 2025-01-01
 
 ### Added

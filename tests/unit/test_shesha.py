@@ -227,3 +227,78 @@ class TestCreateProjectFromRepo:
 
                 # pull() should NOT be called for local repos
                 mock_ingester.pull.assert_not_called()
+
+
+class TestCheckRepoForUpdates:
+    """Tests for check_repo_for_updates method."""
+
+    def test_returns_unchanged_when_no_updates(self, tmp_path: Path):
+        """check_repo_for_updates returns unchanged when repo is current."""
+        with patch("shesha.shesha.docker"), patch("shesha.shesha.ContainerPool"):
+            with patch("shesha.shesha.RepoIngester") as mock_ingester_cls:
+                mock_ingester = MagicMock()
+                mock_ingester_cls.return_value = mock_ingester
+
+                # Cloned repo with matching SHAs
+                mock_ingester.get_repo_url.return_value = "https://github.com/org/repo"
+                mock_ingester.is_local_path.return_value = False
+                mock_ingester.get_saved_sha.return_value = "abc123"
+                mock_ingester.get_remote_sha.return_value = "abc123"
+                mock_ingester.resolve_token.return_value = None
+
+                shesha = Shesha(model="test-model", storage_path=tmp_path)
+                shesha._storage.create_project("my-project")
+
+                result = shesha.check_repo_for_updates("my-project")
+
+                assert result.status == "unchanged"
+                assert result.project.project_id == "my-project"
+
+    def test_returns_updates_available_when_sha_differs(self, tmp_path: Path):
+        """check_repo_for_updates returns updates_available when SHAs differ."""
+        with patch("shesha.shesha.docker"), patch("shesha.shesha.ContainerPool"):
+            with patch("shesha.shesha.RepoIngester") as mock_ingester_cls:
+                mock_ingester = MagicMock()
+                mock_ingester_cls.return_value = mock_ingester
+
+                # Cloned repo with different SHAs
+                mock_ingester.get_repo_url.return_value = "https://github.com/org/repo"
+                mock_ingester.is_local_path.return_value = False
+                mock_ingester.get_saved_sha.return_value = "abc123"
+                mock_ingester.get_remote_sha.return_value = "def456"
+                mock_ingester.resolve_token.return_value = None
+
+                shesha = Shesha(model="test-model", storage_path=tmp_path)
+                shesha._storage.create_project("my-project")
+
+                result = shesha.check_repo_for_updates("my-project")
+
+                assert result.status == "updates_available"
+
+    def test_raises_when_project_not_found(self, tmp_path: Path):
+        """check_repo_for_updates raises ValueError for non-existent project."""
+        with patch("shesha.shesha.docker"), patch("shesha.shesha.ContainerPool"):
+            shesha = Shesha(model="test-model", storage_path=tmp_path)
+
+            with pytest.raises(ValueError) as exc_info:
+                shesha.check_repo_for_updates("nonexistent")
+
+            assert "does not exist" in str(exc_info.value)
+
+    def test_raises_when_no_repo_url(self, tmp_path: Path):
+        """check_repo_for_updates raises ValueError when no repo URL stored."""
+        with patch("shesha.shesha.docker"), patch("shesha.shesha.ContainerPool"):
+            with patch("shesha.shesha.RepoIngester") as mock_ingester_cls:
+                mock_ingester = MagicMock()
+                mock_ingester_cls.return_value = mock_ingester
+
+                # No repo URL stored (not a cloned repo)
+                mock_ingester.get_repo_url.return_value = None
+
+                shesha = Shesha(model="test-model", storage_path=tmp_path)
+                shesha._storage.create_project("my-project")
+
+                with pytest.raises(ValueError) as exc_info:
+                    shesha.check_repo_for_updates("my-project")
+
+                assert "No repository URL" in str(exc_info.value)

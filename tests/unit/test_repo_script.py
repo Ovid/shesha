@@ -298,17 +298,21 @@ class TestMain:
         captured = capsys.readouterr()
         assert "SHESHA_API_KEY" in captured.out
 
-    def test_picker_existing_project_uses_get_project(self) -> None:
-        """Selecting existing project via picker should use get_project."""
+    def test_picker_existing_project_checks_for_updates(self) -> None:
+        """Selecting existing project via picker should check for updates."""
         import os
         import sys
 
         from examples.repo import main
 
-        mock_project = MagicMock()
+        mock_result = MagicMock()
+        mock_result.status = "unchanged"
+        mock_result.files_ingested = 10
+        mock_result.project = MagicMock()
+
         mock_shesha = MagicMock()
         mock_shesha.list_projects.return_value = ["existing-project"]
-        mock_shesha.get_project.return_value = mock_project
+        mock_shesha.check_repo_for_updates.return_value = mock_result
 
         with patch.object(sys, "argv", ["repo.py"]):
             with patch.dict(os.environ, {"SHESHA_API_KEY": "test-key"}, clear=True):
@@ -317,9 +321,47 @@ class TestMain:
                         with patch("builtins.input", side_effect=["1", "quit"]):
                             main()
 
-        # Should use get_project for existing project, NOT create_project_from_repo
-        mock_shesha.get_project.assert_called_once_with("existing-project")
-        mock_shesha.create_project_from_repo.assert_not_called()
+        # Should check for updates when loading existing project
+        mock_shesha.check_repo_for_updates.assert_called_once_with("existing-project")
+
+    def test_picker_existing_project_with_update_flag_applies_updates(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """Selecting existing project with --update should auto-apply updates."""
+        import os
+        import sys
+
+        from examples.repo import main
+
+        # First result has updates available
+        mock_result = MagicMock()
+        mock_result.status = "updates_available"
+        mock_result.files_ingested = 10
+        mock_result.project = MagicMock()
+        mock_result.project.project_id = "existing-project"
+
+        # After applying updates
+        updated_result = MagicMock()
+        updated_result.status = "created"
+        updated_result.files_ingested = 15
+        updated_result.project = mock_result.project
+        mock_result.apply_updates.return_value = updated_result
+
+        mock_shesha = MagicMock()
+        mock_shesha.list_projects.return_value = ["existing-project"]
+        mock_shesha.check_repo_for_updates.return_value = mock_result
+
+        with patch.object(sys, "argv", ["repo.py", "--update"]):
+            with patch.dict(os.environ, {"SHESHA_API_KEY": "test-key"}, clear=True):
+                with patch("examples.repo.Shesha", return_value=mock_shesha):
+                    with patch("examples.repo.SheshaConfig"):
+                        with patch("builtins.input", side_effect=["1", "quit"]):
+                            main()
+
+        # Should apply updates when --update flag is set
+        mock_result.apply_updates.assert_called_once()
+        captured = capsys.readouterr()
+        assert "Applying updates" in captured.out
 
     def test_picker_new_url_uses_create_project_from_repo(self) -> None:
         """Entering new URL via picker should use create_project_from_repo."""

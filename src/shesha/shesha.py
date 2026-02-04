@@ -130,6 +130,34 @@ class Shesha:
         """Delete a project."""
         self._storage.delete_project(project_id)
 
+    def check_repo_for_updates(self, project_id: str) -> RepoProjectResult:
+        """Check if a cloned repository has updates available.
+
+        This retrieves the stored repository URL and checks if the remote
+        has newer commits than the locally cached version.
+
+        Args:
+            project_id: ID of an existing project created from a repository.
+
+        Returns:
+            RepoProjectResult with status 'unchanged' or 'updates_available'.
+
+        Raises:
+            ValueError: If project doesn't exist or has no stored repo URL.
+        """
+        if not self._storage.project_exists(project_id):
+            raise ValueError(f"Project '{project_id}' does not exist")
+
+        url = self._repo_ingester.get_repo_url(project_id)
+        if not url:
+            raise ValueError(
+                f"No repository URL found for project '{project_id}'. "
+                "This project may not have been created from a repository."
+            )
+
+        token = self._repo_ingester.resolve_token(url, None)
+        return self._handle_existing_project(url, project_id, token, None)
+
     def register_parser(self, parser: "DocumentParser") -> None:
         """Register a custom document parser."""
         self._parser_registry.register(parser)

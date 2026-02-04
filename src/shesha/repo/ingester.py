@@ -125,6 +125,31 @@ class RepoIngester:
         parts = result.stdout.strip().split()
         return parts[0] if parts else None
 
+    def get_repo_url(self, project_id: str) -> str | None:
+        """Get the remote origin URL for a cloned repo.
+
+        Args:
+            project_id: ID of the cloned repo.
+
+        Returns:
+            The remote origin URL, or None if not found.
+        """
+        repo_path = self.repos_dir / project_id
+        if not repo_path.exists():
+            return None
+
+        result = subprocess.run(
+            ["git", "remote", "get-url", "origin"],
+            cwd=repo_path,
+            capture_output=True,
+            text=True,
+        )
+
+        if result.returncode != 0:
+            return None
+
+        return result.stdout.strip()
+
     def get_local_sha(self, project_id: str) -> str | None:
         """Get the HEAD SHA from a local cloned repo."""
         repo_path = self.repos_dir / project_id
