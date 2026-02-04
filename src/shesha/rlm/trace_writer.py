@@ -99,3 +99,19 @@ class TraceWriter:
         path.write_text("\n".join(lines) + "\n")
 
         return path
+
+    def cleanup_old_traces(self, project_id: str, max_count: int = 50) -> None:
+        """Remove oldest traces if count exceeds max_count.
+
+        Args:
+            project_id: The project ID
+            max_count: Maximum number of traces to keep
+        """
+        traces = self.storage.list_traces(project_id)
+        if len(traces) <= max_count:
+            return
+
+        # Sorted oldest first, delete until under limit
+        to_delete = traces[: len(traces) - max_count]
+        for trace_path in to_delete:
+            trace_path.unlink()

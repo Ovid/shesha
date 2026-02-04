@@ -147,15 +147,9 @@ class TestTraceWriterContent:
         from shesha.rlm.trace_writer import TraceWriter
 
         trace = Trace()
-        trace.add_step(
-            StepType.CODE_GENERATED, "print('hello')", iteration=0, tokens_used=50
-        )
-        trace.add_step(
-            StepType.CODE_OUTPUT, "hello", iteration=0, duration_ms=100
-        )
-        trace.add_step(
-            StepType.FINAL_ANSWER, "42", iteration=0
-        )
+        trace.add_step(StepType.CODE_GENERATED, "print('hello')", iteration=0, tokens_used=50)
+        trace.add_step(StepType.CODE_OUTPUT, "hello", iteration=0, duration_ms=100)
+        trace.add_step(StepType.FINAL_ANSWER, "42", iteration=0)
 
         writer = TraceWriter(storage)
         path = writer.write_trace(
@@ -218,3 +212,49 @@ class TestTraceWriterContent:
         assert summary["total_tokens"] == {"prompt": 100, "completion": 50}
         assert summary["total_duration_ms"] == 1500
         assert summary["status"] == "success"
+
+
+class TestTraceWriterCleanup:
+    """Tests for trace cleanup."""
+
+    @pytest.fixture
+    def storage(self, tmp_path: Path) -> FilesystemStorage:
+        """Create a temporary storage backend."""
+        storage = FilesystemStorage(root_path=tmp_path)
+        storage.create_project("test-project")
+        return storage
+
+    def test_cleanup_removes_oldest_traces(self, storage: FilesystemStorage) -> None:
+        """cleanup_old_traces removes oldest when over limit."""
+        from shesha.rlm.trace_writer import TraceWriter
+
+        traces_dir = storage.get_traces_dir("test-project")
+        # Create 5 trace files
+        for i in range(5):
+            (traces_dir / f"2026-02-03T10-00-0{i}-000_aaaa{i}111.jsonl").write_text("{}")
+
+        writer = TraceWriter(storage)
+        writer.cleanup_old_traces("test-project", max_count=3)
+
+        remaining = storage.list_traces("test-project")
+        assert len(remaining) == 3
+        # Oldest 2 should be deleted, newest 3 remain
+        names = [p.name for p in remaining]
+        assert "2026-02-03T10-00-02-000_aaaa2111.jsonl" in names
+        assert "2026-02-03T10-00-03-000_aaaa3111.jsonl" in names
+        assert "2026-02-03T10-00-04-000_aaaa4111.jsonl" in names
+
+    def test_cleanup_does_nothing_under_limit(self, storage: FilesystemStorage) -> None:
+        """cleanup_old_traces does nothing when under limit."""
+        from shesha.rlm.trace_writer import TraceWriter
+
+        traces_dir = storage.get_traces_dir("test-project")
+        # Create 2 trace files
+        (traces_dir / "2026-02-03T10-00-00-000_aaaa1111.jsonl").write_text("{}")
+        (traces_dir / "2026-02-03T10-00-01-000_bbbb2222.jsonl").write_text("{}")
+
+        writer = TraceWriter(storage)
+        writer.cleanup_old_traces("test-project", max_count=5)
+
+        remaining = storage.list_traces("test-project")
+        assert len(remaining) == 2
