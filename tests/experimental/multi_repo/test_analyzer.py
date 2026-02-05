@@ -294,3 +294,64 @@ class TestMultiRepoAnalyzerSynthesize:
         assert hld.data_flow == "User -> Auth -> API"
         assert "Provider?" in hld.open_questions
         assert "# Full HLD" in hld.raw_hld
+
+
+class TestMultiRepoAnalyzerAlign:
+    """Tests for Phase 4 alignment verification."""
+
+    def test_run_align_checks_coverage(self):
+        """Align phase verifies HLD covers PRD."""
+        mock_shesha = MagicMock()
+        mock_project = MagicMock()
+        mock_query_result = MagicMock()
+        mock_query_result.answer = json.dumps({
+            "covered": [{"requirement": "R1", "hld_section": "S1"}],
+            "gaps": [],
+            "scope_creep": [],
+            "alignment_score": 1.0,
+            "recommendation": "approved",
+        }) + "\n\nFully aligned."
+        mock_project.query.return_value = mock_query_result
+        mock_shesha.get_project.return_value = mock_project
+
+        analyzer = MultiRepoAnalyzer(mock_shesha)
+        analyzer._repos = ["test"]
+
+        from shesha.experimental.multi_repo.models import HLDDraft
+
+        hld = HLDDraft(raw_hld="# HLD\n...")
+
+        report = analyzer._run_align("PRD text", hld)
+
+        assert report.alignment_score == 1.0
+        assert report.recommendation == "approved"
+        assert len(report.covered) == 1
+        assert report.gaps == []
+
+    def test_run_align_finds_gaps(self):
+        """Align phase identifies missing requirements."""
+        mock_shesha = MagicMock()
+        mock_project = MagicMock()
+        mock_query_result = MagicMock()
+        mock_query_result.answer = json.dumps({
+            "covered": [],
+            "gaps": [{"requirement": "R1", "reason": "Not addressed"}],
+            "scope_creep": [],
+            "alignment_score": 0.5,
+            "recommendation": "revise",
+        }) + "\n\nNeeds revision."
+        mock_project.query.return_value = mock_query_result
+        mock_shesha.get_project.return_value = mock_project
+
+        analyzer = MultiRepoAnalyzer(mock_shesha)
+        analyzer._repos = ["test"]
+
+        from shesha.experimental.multi_repo.models import HLDDraft
+
+        hld = HLDDraft(raw_hld="# HLD\n...")
+
+        report = analyzer._run_align("PRD text", hld)
+
+        assert report.alignment_score == 0.5
+        assert report.recommendation == "revise"
+        assert len(report.gaps) == 1

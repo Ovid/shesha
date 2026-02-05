@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from shesha.experimental.multi_repo.models import (
+    AlignmentReport,
     HLDDraft,
     ImpactReport,
     RepoSummary,
@@ -224,3 +225,36 @@ class MultiRepoAnalyzer:
             )
 
         return HLDDraft(raw_hld=answer)
+
+    def _run_align(
+        self,
+        prd: str,
+        hld: HLDDraft,
+    ) -> AlignmentReport:
+        """Run Phase 4 alignment verification."""
+        project = self._shesha.get_project(self._repos[0])
+        prompt_template = self._load_prompt("align")
+
+        prompt = prompt_template.replace("{prd}", prd)
+        prompt = prompt.replace("{hld}", hld.raw_hld)
+
+        result = project.query(prompt)
+        answer = result.answer
+
+        data = self._extract_json(answer)
+
+        if data:
+            return AlignmentReport(
+                covered=data.get("covered", []),
+                gaps=data.get("gaps", []),
+                scope_creep=data.get("scope_creep", []),
+                alignment_score=float(data.get("alignment_score", 0.0)),
+                recommendation=data.get("recommendation", "revise"),
+                raw_analysis=answer,
+            )
+
+        return AlignmentReport(
+            alignment_score=0.0,
+            recommendation="revise",
+            raw_analysis=answer,
+        )
