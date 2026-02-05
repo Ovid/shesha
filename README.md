@@ -18,7 +18,7 @@ So far it seems to work, but it's only been tested with .txt documents and the O
 
 ## Prerequisites
 
-- Python 3.12+
+- Python 3.11+
 - Docker (for sandbox execution)
 - An LLM API key (or local Ollama installation)
 
@@ -64,8 +64,8 @@ pip install shesha
 
 
 ```bash
-git clone https://github.com/Ovid/shesha.git
-cd shesha
+git clone https://github.com/l00p3rl00p/sheshaMajorMcp-rlm.git
+cd sheshaMajorMcp-rlm
 
 # Create and activate a virtual environment
 python3 -m venv .venv
@@ -74,6 +74,34 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 # Install with dev dependencies
 pip install -e ".[dev]"
 ```
+
+## Librarian (CLI + MCP Server)
+
+This repo includes **Librarian**, a vendor-neutral wrapper that provides:
+
+- a **headless CLI** (`librarian ...` or `python -m shesha.librarian ...`)
+- an **MCP stdio server** (`librarian mcp` or `python -m shesha.librarian mcp`)
+
+### One-command install + self-test (from source)
+
+From the repo root (with your venv active):
+
+```bash
+python -m pip install . && python -m shesha.librarian install
+```
+
+This will:
+
+- create persistent state dirs (storage + logs) with safe defaults
+- build/verify the sandbox Docker image and run a minimal self-test (MCP health + Docker/sandbox validation)
+- write a local manifest at `.librarian/manifest.json`
+- generate `mcp-server-readme.md` with the exact next commands
+
+Override state locations with:
+
+- `LIBRARIAN_HOME`
+- `LIBRARIAN_STORAGE_PATH`
+- `LIBRARIAN_LOG_DIR`
 
 ### Build the Sandbox Container
 

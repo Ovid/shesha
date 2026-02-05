@@ -31,6 +31,8 @@ uv.lock
 .DS_Store
 Thumbs.db
 HANDOFF.md
+.librarian/
+mcp-server-readme.md
 
 # Development
 scratch/

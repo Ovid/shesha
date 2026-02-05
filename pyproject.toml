@@ -31,6 +31,10 @@ dev = [
     "types-docker>=7.0",
 ]
 
+[project.scripts]
+librarian = "shesha.librarian.cli:main"
+librarian-mcp = "shesha.librarian.mcp:main"
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/shesha"]
 
