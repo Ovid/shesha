@@ -128,9 +128,7 @@ class TestShowPicker:
         assert value == ""
         assert is_existing is False
 
-    def test_invalid_input_reprompts(
-        self, capsys: pytest.CaptureFixture[str]
-    ) -> None:
+    def test_invalid_input_reprompts(self, capsys: pytest.CaptureFixture[str]) -> None:
         """Invalid input like 'asdf' should show error and reprompt."""
         from examples.repo import show_picker
 
@@ -312,7 +310,7 @@ class TestRunInteractiveLoop:
         mock_project = MagicMock()
 
         with patch("builtins.input", return_value="quit"):
-            run_interactive_loop(mock_project, verbose=False)
+            run_interactive_loop(mock_project, verbose=False, project_name="test-project")
 
         captured = capsys.readouterr()
         assert "Goodbye!" in captured.out
@@ -325,7 +323,7 @@ class TestRunInteractiveLoop:
         mock_project = MagicMock()
 
         with patch("builtins.input", return_value="exit"):
-            run_interactive_loop(mock_project, verbose=False)
+            run_interactive_loop(mock_project, verbose=False, project_name="test-project")
 
         captured = capsys.readouterr()
         assert "Goodbye!" in captured.out
@@ -338,7 +336,7 @@ class TestRunInteractiveLoop:
 
         # First empty, then quit
         with patch("builtins.input", side_effect=["", "quit"]):
-            run_interactive_loop(mock_project, verbose=False)
+            run_interactive_loop(mock_project, verbose=False, project_name="test-project")
 
         mock_project.query.assert_not_called()
 
@@ -356,7 +354,7 @@ class TestRunInteractiveLoop:
         mock_project.query.return_value = mock_result
 
         with patch("builtins.input", side_effect=["What is X?", "quit"]):
-            run_interactive_loop(mock_project, verbose=False)
+            run_interactive_loop(mock_project, verbose=False, project_name="test-project")
 
         mock_project.query.assert_called_once()
 
@@ -643,9 +641,7 @@ class TestMain:
         confirmation_prompt = prompts[1]  # Second prompt is the confirmation
         assert "cloned repository" in confirmation_prompt
 
-    def test_non_git_local_path_exits_cleanly(
-        self, capsys: pytest.CaptureFixture[str]
-    ) -> None:
+    def test_non_git_local_path_exits_cleanly(self, capsys: pytest.CaptureFixture[str]) -> None:
         """Non-git local path should print clean error and exit."""
         import os
         import sys

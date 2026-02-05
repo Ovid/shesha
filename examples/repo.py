@@ -67,7 +67,10 @@ if __name__ == "__main__":
         format_thought_time,
         install_urllib3_cleanup_hook,
         is_exit_command,
+        is_write_command,
+        parse_write_command,
         should_warn_history_size,
+        write_session,
     )
 else:
     from .script_utils import (
@@ -78,7 +81,10 @@ else:
         format_thought_time,
         install_urllib3_cleanup_hook,
         is_exit_command,
+        is_write_command,
+        parse_write_command,
         should_warn_history_size,
+        write_session,
     )
 
 if TYPE_CHECKING:
@@ -281,7 +287,7 @@ def handle_updates(result: RepoProjectResult, auto_update: bool) -> RepoProjectR
     return result
 
 
-def run_interactive_loop(project: Project, verbose: bool) -> None:
+def run_interactive_loop(project: Project, verbose: bool, project_name: str) -> None:
     """Run the interactive question-answer loop for querying the codebase.
 
     Provides a REPL-style interface where users can ask questions about the
@@ -292,6 +298,7 @@ def run_interactive_loop(project: Project, verbose: bool) -> None:
         project: The Shesha project containing the indexed repository.
         verbose: If True, displays execution stats (time, tokens, trace)
             and progress updates during query processing.
+        project_name: Name or URL of the project for session transcript metadata.
 
     Note:
         The loop continues until the user types "quit", "exit", or presses
@@ -317,6 +324,20 @@ def run_interactive_loop(project: Project, verbose: bool) -> None:
         if is_exit_command(user_input):
             print("Goodbye!")
             break
+
+        if is_write_command(user_input):
+            if not history:
+                print("Nothing to save - no exchanges yet.")
+                print()
+                continue
+            try:
+                filename = parse_write_command(user_input)
+                path = write_session(history, project_name, filename)
+                print(f"Session saved to {path} ({len(history)} exchanges)")
+            except OSError as e:
+                print(f"Error saving session: {e}")
+            print()
+            continue
 
         if should_warn_history_size(history):
             print(f"Warning: Conversation history is large ({len(history)} exchanges).")
@@ -461,7 +482,7 @@ def main() -> None:
         project = result.project
 
     # Enter interactive loop
-    run_interactive_loop(project, args.verbose)
+    run_interactive_loop(project, args.verbose, project.project_id)
 
 
 if __name__ == "__main__":
