@@ -107,6 +107,11 @@ def is_exit_command(user_input: str) -> bool:
     return user_input.lower() in ("quit", "exit")
 
 
+def is_help_command(user_input: str) -> bool:
+    """Check if user input is a help command."""
+    return user_input.lower() in ("help", "?")
+
+
 def is_write_command(user_input: str) -> bool:
     """Check if user input is a write command.
 
@@ -116,8 +121,8 @@ def is_write_command(user_input: str) -> bool:
     Returns:
         True if the input is 'write' or 'write <filename>'.
     """
-    lower = user_input.lower()
-    return lower == "write" or lower.startswith("write ")
+    parts = user_input.lower().split()
+    return len(parts) >= 1 and parts[0] == "write"
 
 
 def parse_write_command(user_input: str) -> str | None:

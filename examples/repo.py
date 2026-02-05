@@ -9,6 +9,8 @@ Features:
     - Interactive picker for previously indexed repositories
     - Automatic update detection and application
     - Conversation history for follow-up questions
+    - Session transcript export with "write" command
+    - In-session help with "help" or "?" command
     - Verbose mode with execution stats and progress
 
 Usage:
@@ -39,6 +41,10 @@ Example:
     > How does the sandbox execute code?
     [Thought for 15 seconds]
     The sandbox executes code in isolated Docker containers...
+
+    # Save session transcript
+    > write                    # Auto-generates timestamped filename
+    > write my-notes.md        # Custom filename
 """
 
 from __future__ import annotations
@@ -57,6 +63,17 @@ from shesha.rlm.trace import StepType
 # Storage path for repo projects
 STORAGE_PATH = Path.home() / ".shesha" / "repos"
 
+INTERACTIVE_HELP = """\
+Shesha Repository Explorer - Ask questions about the indexed codebase.
+
+Commands:
+  help, ?              Show this help message
+  write                Save session transcript (auto-generated filename)
+  write <filename>     Save session transcript to specified file
+  quit, exit           Leave the session
+
+Tip: Use --verbose flag for execution stats after each answer."""
+
 # Support both running as script and importing as module
 if __name__ == "__main__":
     from script_utils import (
@@ -67,6 +84,7 @@ if __name__ == "__main__":
         format_thought_time,
         install_urllib3_cleanup_hook,
         is_exit_command,
+        is_help_command,
         is_write_command,
         parse_write_command,
         should_warn_history_size,
@@ -81,6 +99,7 @@ else:
         format_thought_time,
         install_urllib3_cleanup_hook,
         is_exit_command,
+        is_help_command,
         is_write_command,
         parse_write_command,
         should_warn_history_size,
@@ -306,7 +325,8 @@ def run_interactive_loop(project: Project, verbose: bool, project_name: str) -> 
         prepended to each query for context.
     """
     print()
-    print('Ask questions about the codebase. Type "quit" or "exit" to leave.')
+    print("Ask questions about the codebase.")
+    print('Type "help" or "?" for commands.')
     print()
 
     history: list[tuple[str, str]] = []
@@ -324,6 +344,11 @@ def run_interactive_loop(project: Project, verbose: bool, project_name: str) -> 
         if is_exit_command(user_input):
             print("Goodbye!")
             break
+
+        if is_help_command(user_input):
+            print(INTERACTIVE_HELP)
+            print()
+            continue
 
         if is_write_command(user_input):
             if not history:

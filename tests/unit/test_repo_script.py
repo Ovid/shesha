@@ -358,6 +358,35 @@ class TestRunInteractiveLoop:
 
         mock_project.query.assert_called_once()
 
+    def test_help_shows_help_text(self, capsys: pytest.CaptureFixture[str]) -> None:
+        """Typing 'help' should show help text without querying."""
+        from examples.repo import run_interactive_loop
+
+        mock_project = MagicMock()
+
+        with patch("builtins.input", side_effect=["help", "quit"]):
+            run_interactive_loop(mock_project, verbose=False, project_name="test-project")
+
+        captured = capsys.readouterr()
+        assert "Commands:" in captured.out
+        assert "help, ?" in captured.out
+        assert "write" in captured.out
+        assert "quit, exit" in captured.out
+        mock_project.query.assert_not_called()
+
+    def test_question_mark_shows_help_text(self, capsys: pytest.CaptureFixture[str]) -> None:
+        """Typing '?' should show help text without querying."""
+        from examples.repo import run_interactive_loop
+
+        mock_project = MagicMock()
+
+        with patch("builtins.input", side_effect=["?", "quit"]):
+            run_interactive_loop(mock_project, verbose=False, project_name="test-project")
+
+        captured = capsys.readouterr()
+        assert "Commands:" in captured.out
+        mock_project.query.assert_not_called()
+
 
 class TestMain:
     """Tests for main function."""

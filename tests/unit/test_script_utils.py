@@ -142,6 +142,32 @@ class TestIsExitCommand:
         assert not is_exit_command("question")
 
 
+class TestIsHelpCommand:
+    """Tests for is_help_command function."""
+
+    def test_help_is_help(self) -> None:
+        """'help' should be recognized as help command."""
+        from examples.script_utils import is_help_command
+
+        assert is_help_command("help")
+        assert is_help_command("HELP")
+        assert is_help_command("Help")
+
+    def test_question_mark_is_help(self) -> None:
+        """'?' should be recognized as help command."""
+        from examples.script_utils import is_help_command
+
+        assert is_help_command("?")
+
+    def test_other_not_help(self) -> None:
+        """Other inputs should not be help commands."""
+        from examples.script_utils import is_help_command
+
+        assert not is_help_command("hello")
+        assert not is_help_command("help me")
+        assert not is_help_command("??")
+
+
 class TestShouldWarnHistorySize:
     """Tests for should_warn_history_size function."""
 
@@ -213,6 +239,17 @@ class TestIsWriteCommand:
         assert not is_write_command("writeup")
         assert not is_write_command("rewrite")
         assert not is_write_command("")
+
+    def test_write_with_special_whitespace(self) -> None:
+        """Write command should handle tabs and unicode spaces."""
+        from examples.script_utils import is_write_command
+
+        # Tab between write and filename
+        assert is_write_command("write\ttest.md")
+        # Non-breaking space (U+00A0)
+        assert is_write_command("write\u00a0test.md")
+        # Em space (U+2003)
+        assert is_write_command("write\u2003test.md")
 
 
 class TestParseWriteCommand:
