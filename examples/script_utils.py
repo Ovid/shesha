@@ -175,3 +175,38 @@ def generate_session_filename() -> str:
     """
     timestamp = datetime.now().strftime("%Y-%m-%d-%H%M%S")
     return f"session-{timestamp}.md"
+
+
+def format_session_transcript(history: list[tuple[str, str]], project_name: str) -> str:
+    """Format conversation history as a markdown transcript.
+
+    Args:
+        history: List of (question, answer) tuples.
+        project_name: Name or URL of the project for metadata.
+
+    Returns:
+        Formatted markdown string.
+    """
+    date_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    lines = [
+        "# Session Transcript",
+        "",
+        f"- **Date:** {date_str}",
+        f"- **Project:** {project_name}",
+        f"- **Exchanges:** {len(history)}",
+        "",
+        "---",
+    ]
+
+    for question, answer in history:
+        lines.extend([
+            "",
+            f"**User:** {question}",
+            "",
+            answer,
+            "",
+            "---",
+        ])
+
+    return "\n".join(lines)

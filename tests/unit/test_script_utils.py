@@ -275,3 +275,51 @@ class TestGenerateSessionFilename:
 
         filename = generate_session_filename()
         assert filename.startswith("session-")
+
+
+class TestFormatSessionTranscript:
+    """Tests for format_session_transcript function."""
+
+    def test_empty_history(self) -> None:
+        """Empty history should still produce valid markdown with header."""
+        from examples.script_utils import format_session_transcript
+
+        result = format_session_transcript([], "test-project")
+        assert "# Session Transcript" in result
+        assert "**Project:** test-project" in result
+        assert "**Exchanges:** 0" in result
+
+    def test_single_exchange(self) -> None:
+        """Single exchange should be formatted correctly."""
+        from examples.script_utils import format_session_transcript
+
+        history = [("What is X?", "X is a variable.")]
+        result = format_session_transcript(history, "my-project")
+
+        assert "# Session Transcript" in result
+        assert "**Project:** my-project" in result
+        assert "**Exchanges:** 1" in result
+        assert "**User:** What is X?" in result
+        assert "X is a variable." in result
+
+    def test_multiple_exchanges(self) -> None:
+        """Multiple exchanges should be separated by horizontal rules."""
+        from examples.script_utils import format_session_transcript
+
+        history = [("Q1?", "A1."), ("Q2?", "A2.")]
+        result = format_session_transcript(history, "project")
+
+        assert "**Exchanges:** 2" in result
+        assert "**User:** Q1?" in result
+        assert "A1." in result
+        assert "**User:** Q2?" in result
+        assert "A2." in result
+        # Should have separators between exchanges
+        assert result.count("---") >= 2
+
+    def test_includes_date(self) -> None:
+        """Transcript should include a date field."""
+        from examples.script_utils import format_session_transcript
+
+        result = format_session_transcript([], "project")
+        assert "**Date:**" in result
