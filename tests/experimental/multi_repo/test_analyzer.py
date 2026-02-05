@@ -256,3 +256,41 @@ class TestMultiRepoAnalyzerImpact:
 
         assert report.affected is False
         assert report.changes == []
+
+
+class TestMultiRepoAnalyzerSynthesize:
+    """Tests for Phase 3 HLD synthesis."""
+
+    def test_run_synthesize_creates_hld(self):
+        """Synthesize phase creates HLD from impact reports."""
+        mock_shesha = MagicMock()
+        mock_project = MagicMock()
+        mock_query_result = MagicMock()
+        mock_query_result.answer = json.dumps({
+            "component_changes": {"auth": ["Add OAuth"]},
+            "data_flow": "User -> Auth -> API",
+            "interface_contracts": ["OAuth callback"],
+            "implementation_sequence": ["1. Auth", "2. API"],
+            "open_questions": ["Provider?"],
+        }) + "\n\n# Full HLD\n\n## Changes\n..."
+        mock_project.query.return_value = mock_query_result
+        mock_shesha.get_project.return_value = mock_project
+
+        analyzer = MultiRepoAnalyzer(mock_shesha)
+        analyzer._repos = ["auth"]
+
+        impacts = {
+            "auth": ImpactReport(
+                project_id="auth",
+                affected=True,
+                changes=["Add OAuth"],
+                raw_analysis="Needs OAuth",
+            )
+        }
+
+        hld = analyzer._run_synthesize("Add OAuth support", impacts)
+
+        assert hld.component_changes == {"auth": ["Add OAuth"]}
+        assert hld.data_flow == "User -> Auth -> API"
+        assert "Provider?" in hld.open_questions
+        assert "# Full HLD" in hld.raw_hld

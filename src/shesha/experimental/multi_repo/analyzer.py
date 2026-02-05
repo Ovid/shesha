@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from shesha.experimental.multi_repo.models import (
+    HLDDraft,
     ImpactReport,
     RepoSummary,
 )
@@ -97,8 +98,8 @@ class MultiRepoAnalyzer:
 
     def _extract_json(self, text: str) -> dict[str, Any] | None:
         """Extract JSON object from text that may contain markdown."""
-        # Try to find JSON in code blocks first
-        json_match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
+        # Try to find JSON in code blocks first (greedy match for nested braces)
+        json_match = re.search(r"```(?:json)?\s*(\{.*\})\s*```", text, re.DOTALL)
         if json_match:
             try:
                 result: dict[str, Any] = json.loads(json_match.group(1))
@@ -106,14 +107,19 @@ class MultiRepoAnalyzer:
             except json.JSONDecodeError:
                 pass
 
-        # Try to find raw JSON
-        json_match = re.search(r"\{[^{}]*\}", text, re.DOTALL)
-        if json_match:
-            try:
-                result = json.loads(json_match.group(0))
-                return result
-            except json.JSONDecodeError:
-                pass
+        # Try to find raw JSON by looking for balanced braces
+        # Find first { and try parsing from there
+        start_idx = text.find("{")
+        if start_idx != -1:
+            # Try progressively longer substrings until we find valid JSON
+            for end_idx in range(len(text) - 1, start_idx, -1):
+                if text[end_idx] == "}":
+                    candidate = text[start_idx : end_idx + 1]
+                    try:
+                        result = json.loads(candidate)
+                        return result
+                    except json.JSONDecodeError:
+                        continue
 
         return None
 
@@ -185,3 +191,36 @@ class MultiRepoAnalyzer:
             affected=True,
             raw_analysis=answer,
         )
+
+    def _run_synthesize(
+        self,
+        prd: str,
+        impacts: dict[str, ImpactReport],
+    ) -> HLDDraft:
+        """Run Phase 3 HLD synthesis."""
+        project = self._shesha.get_project(self._repos[0])
+        prompt_template = self._load_prompt("synthesize")
+
+        impact_text = "\n\n".join(
+            f"### {pid}\n{report.raw_analysis}" for pid, report in impacts.items()
+        )
+
+        prompt = prompt_template.replace("{prd}", prd)
+        prompt = prompt.replace("{impact_reports}", impact_text)
+
+        result = project.query(prompt)
+        answer = result.answer
+
+        data = self._extract_json(answer)
+
+        if data:
+            return HLDDraft(
+                component_changes=data.get("component_changes", {}),
+                data_flow=data.get("data_flow", ""),
+                interface_contracts=data.get("interface_contracts", []),
+                implementation_sequence=data.get("implementation_sequence", []),
+                open_questions=data.get("open_questions", []),
+                raw_hld=answer,
+            )
+
+        return HLDDraft(raw_hld=answer)
