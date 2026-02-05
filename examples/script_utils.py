@@ -105,6 +105,19 @@ def is_exit_command(user_input: str) -> bool:
     return user_input.lower() in ("quit", "exit")
 
 
+def is_write_command(user_input: str) -> bool:
+    """Check if user input is a write command.
+
+    Args:
+        user_input: The user's input string.
+
+    Returns:
+        True if the input is 'write' or 'write <filename>'.
+    """
+    lower = user_input.lower()
+    return lower == "write" or lower.startswith("write ")
+
+
 def should_warn_history_size(history: list[tuple[str, str]]) -> bool:
     """Check if history is large enough to warrant a warning."""
     if len(history) >= HISTORY_WARN_EXCHANGES:

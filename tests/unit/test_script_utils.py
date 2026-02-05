@@ -180,3 +180,32 @@ class TestInstallUrllib3CleanupHook:
 
         # Restore original
         sys.unraisablehook = original
+
+
+class TestIsWriteCommand:
+    """Tests for is_write_command function."""
+
+    def test_write_alone_is_write_command(self) -> None:
+        """'write' by itself should be recognized."""
+        from examples.script_utils import is_write_command
+
+        assert is_write_command("write")
+        assert is_write_command("WRITE")
+        assert is_write_command("Write")
+
+    def test_write_with_filename_is_write_command(self) -> None:
+        """'write <filename>' should be recognized."""
+        from examples.script_utils import is_write_command
+
+        assert is_write_command("write myfile.md")
+        assert is_write_command("write path/to/file.md")
+        assert is_write_command("WRITE session.md")
+
+    def test_other_not_write_command(self) -> None:
+        """Other inputs should not be write commands."""
+        from examples.script_utils import is_write_command
+
+        assert not is_write_command("hello")
+        assert not is_write_command("writeup")
+        assert not is_write_command("rewrite")
+        assert not is_write_command("")
