@@ -150,3 +150,38 @@ class MultiRepoAnalyzer:
             project_id=project_id,
             raw_summary=answer,
         )
+
+    def _run_impact(
+        self,
+        project_id: str,
+        prd: str,
+        summary: RepoSummary,
+    ) -> ImpactReport:
+        """Run Phase 2 impact analysis on a single project."""
+        project = self._shesha.get_project(project_id)
+        prompt_template = self._load_prompt("impact")
+
+        prompt = prompt_template.replace("{prd}", prd)
+        prompt = prompt.replace("{repo_summary}", summary.raw_summary)
+
+        result = project.query(prompt)
+        answer = result.answer
+
+        data = self._extract_json(answer)
+
+        if data:
+            return ImpactReport(
+                project_id=project_id,
+                affected=data.get("affected", False),
+                changes=data.get("changes", []),
+                new_interfaces=data.get("new_interfaces", []),
+                modified_interfaces=data.get("modified_interfaces", []),
+                discovered_dependencies=data.get("discovered_dependencies", []),
+                raw_analysis=answer,
+            )
+
+        return ImpactReport(
+            project_id=project_id,
+            affected=True,
+            raw_analysis=answer,
+        )

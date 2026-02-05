@@ -196,3 +196,63 @@ class TestMultiRepoAnalyzerRecon:
         assert summary.raw_summary == "This repo contains user management code."
         # Lists should be empty when JSON parsing fails
         assert summary.apis == []
+
+
+class TestMultiRepoAnalyzerImpact:
+    """Tests for Phase 2 impact analysis."""
+
+    def test_run_impact_queries_with_prd_and_summary(self):
+        """Impact phase queries with PRD and repo summary."""
+        mock_shesha = MagicMock()
+        mock_project = MagicMock()
+        mock_project.project_id = "test-repo"
+        mock_query_result = MagicMock()
+        mock_query_result.answer = json.dumps({
+            "affected": True,
+            "changes": ["Add new endpoint"],
+            "new_interfaces": ["GET /new"],
+            "modified_interfaces": ["POST /old"],
+            "discovered_dependencies": ["other-service"],
+        }) + "\n\nNeeds changes for OAuth."
+        mock_project.query.return_value = mock_query_result
+        mock_shesha.get_project.return_value = mock_project
+
+        analyzer = MultiRepoAnalyzer(mock_shesha)
+
+        summary = RepoSummary(
+            project_id="test-repo",
+            apis=["GET /users"],
+            raw_summary="User service",
+        )
+
+        report = analyzer._run_impact("test-repo", "Add OAuth support", summary)
+
+        assert report.project_id == "test-repo"
+        assert report.affected is True
+        assert "Add new endpoint" in report.changes
+        assert "other-service" in report.discovered_dependencies
+
+    def test_run_impact_not_affected(self):
+        """Impact correctly identifies unaffected repos."""
+        mock_shesha = MagicMock()
+        mock_project = MagicMock()
+        mock_project.project_id = "test-repo"
+        mock_query_result = MagicMock()
+        mock_query_result.answer = json.dumps({
+            "affected": False,
+            "changes": [],
+            "new_interfaces": [],
+            "modified_interfaces": [],
+            "discovered_dependencies": [],
+        }) + "\n\nNo changes needed."
+        mock_project.query.return_value = mock_query_result
+        mock_shesha.get_project.return_value = mock_project
+
+        analyzer = MultiRepoAnalyzer(mock_shesha)
+
+        summary = RepoSummary(project_id="test-repo", raw_summary="Logging service")
+
+        report = analyzer._run_impact("test-repo", "Add OAuth support", summary)
+
+        assert report.affected is False
+        assert report.changes == []
