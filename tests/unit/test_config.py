@@ -77,6 +77,39 @@ class TestMaxTracesConfig:
         assert config.max_traces_per_project == 100
 
 
+class TestVerifyCitationsConfig:
+    """Tests for verify_citations config."""
+
+    def test_default_verify_citations_is_true(self) -> None:
+        """Default verify_citations is True."""
+        config = SheshaConfig()
+        assert config.verify_citations is True
+
+    def test_verify_citations_from_env_false(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """SHESHA_VERIFY_CITATIONS=false disables verification."""
+        monkeypatch.setenv("SHESHA_VERIFY_CITATIONS", "false")
+        config = SheshaConfig.load()
+        assert config.verify_citations is False
+
+    def test_verify_citations_from_env_true(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """SHESHA_VERIFY_CITATIONS=true enables verification."""
+        monkeypatch.setenv("SHESHA_VERIFY_CITATIONS", "true")
+        config = SheshaConfig.load()
+        assert config.verify_citations is True
+
+    def test_verify_citations_from_file(self, tmp_path: Path) -> None:
+        """verify_citations can be set from config file."""
+        config_file = tmp_path / "shesha.yaml"
+        config_file.write_text("verify_citations: false\n")
+        config = SheshaConfig.from_file(config_file)
+        assert config.verify_citations is False
+
+    def test_verify_citations_override(self) -> None:
+        """verify_citations can be overridden via kwargs."""
+        config = SheshaConfig.load(verify_citations=False)
+        assert config.verify_citations is False
+
+
 def test_config_has_no_allowed_hosts():
     """allowed_hosts was removed — config must not have it."""
     config = SheshaConfig()

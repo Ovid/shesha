@@ -31,6 +31,9 @@ class SheshaConfig:
     max_iterations: int = 20
     max_output_chars: int = 50000
 
+    # Verification
+    verify_citations: bool = True
+
     # Trace logging
     max_traces_per_project: int = 50
 
@@ -85,12 +88,15 @@ class SheshaConfig:
             "SHESHA_POOL_SIZE": "pool_size",
             "SHESHA_MAX_ITERATIONS": "max_iterations",
             "SHESHA_MAX_TRACES_PER_PROJECT": "max_traces_per_project",
+            "SHESHA_VERIFY_CITATIONS": "verify_citations",
         }
         for env_var, field_name in env_map.items():
             if env_var in os.environ:
                 env_val: Any = os.environ[env_var]
                 if field_name in {"pool_size", "max_iterations", "max_traces_per_project"}:
                     env_val = int(env_val)
+                elif field_name in {"verify_citations"}:
+                    env_val = env_val.lower() in {"true", "1", "yes"}
                 config_dict[field_name] = env_val
 
         # Layer 4: Explicit overrides (highest priority)
