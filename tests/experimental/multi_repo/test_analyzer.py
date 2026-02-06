@@ -827,7 +827,7 @@ class TestMultiRepoAnalyzerRevisionLoop:
             {
                 "covered": [],
                 "gaps": [{"requirement": "Auth flow", "reason": "Not addressed"}],
-                "scope_creep": [{"item": "Caching", "reason": "Not in PRD"}],
+                "scope_creep": [{"hld_item": "Caching", "reason": "Not in PRD"}],
                 "alignment_score": 0.5,
                 "recommendation": "revise",
             }
@@ -880,7 +880,9 @@ class TestMultiRepoAnalyzerRevisionLoop:
         # Call 4 (index 4) is the second synthesize call
         second_synth_prompt = calls[4][0][0]
         assert "Auth flow" in second_synth_prompt, "Gaps should be in revision prompt"
-        assert "Caching" in second_synth_prompt, "Scope creep should be in revision prompt"
+        assert "Caching: Not in PRD" in second_synth_prompt, (
+            "Scope creep hld_item should appear as label, not 'Unknown'"
+        )
 
     def test_revision_loop_stops_on_accept(self):
         """Revision loop stops immediately when callback returns 'accept'."""

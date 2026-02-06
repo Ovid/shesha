@@ -294,7 +294,7 @@ class MultiRepoAnalyzer:
 
             if alignment_feedback.scope_creep:
                 creep_text = "\n".join(
-                    f"- {s.get('item', 'Unknown')}: {s.get('reason', 'No reason')}"
+                    f"- {s.get('hld_item', 'Unknown')}: {s.get('reason', 'No reason')}"
                     for s in alignment_feedback.scope_creep
                 )
                 feedback_sections.append(f"**Scope creep to remove:**\n{creep_text}")
