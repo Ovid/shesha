@@ -18,6 +18,28 @@ python -m shesha.librarian install
 
 That's it! The installer will guide you through everything automatically.
 
+**Next Step**: Read [**docs/GETTING_STARTED.md**](./docs/GETTING_STARTED.md) to perform your first codebase research.
+
+### 🔌 MCP Client Configuration (Generic Example)
+
+To connect Shesha to an MCP client (like Claude Desktop or Cursor), use this configuration template:
+
+```json
+{
+  "mcpServers": {
+    "shesha": {
+      "command": "/path/to/your/venv/bin/python",
+      "args": ["-m", "shesha.librarian", "mcp"],
+      "env": {
+        "ANY_PROVIDER_API_KEY": "YOUR_KEY_HERE",
+        "SHESHA_MODEL": "your-preferred-model"
+      }
+    }
+  }
+}
+```
+*Note: The `librarian install` command generates a file (`mcp-server-readme.md`) with the **exact** path for your machine.*
+
 ### What the installer does for you:
 *   **System Audit**: Verifies Python 3.11+ (exits with clear error if older) and checks if you're in a virtual environment (provides setup guidance if not).
 *   **Infrastructure Check**: Detects if Docker is running (required for secure code sandboxing).

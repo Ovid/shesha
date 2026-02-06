@@ -143,12 +143,40 @@ def _ensure_sandbox_image(image: str) -> tuple[bool, str]:
 
 
 def _write_readme(*, path: Path, storage_path: Path, logs_path: Path, manifest_path: Path) -> None:
+    # Tailor the command to the current environment
+    python_path = sys.executable or "python"
+
     content = f"""# Librarian MCP Server (Shesha RLM)
 
 This installation provides:
 
 - **CLI mode (headless):** run queries and manage projects from a terminal
 - **MCP mode (stdio):** run as a Model Context Protocol server over stdin/stdout
+
+## 🔌 MCP Client Configuration
+
+To connect Shesha to an MCP client (like Claude Desktop or Cursor), add the following to your configuration:
+
+```json
+{{
+  "mcpServers": {{
+    "shesha": {{
+      "command": "{python_path}",
+      "args": [
+        "-m",
+        "shesha.librarian",
+        "mcp"
+      ],
+      "env": {{
+        "ANTHROPIC_API_KEY": "YOUR_API_KEY_HERE",
+        "SHESHA_MODEL": "claude-3-5-sonnet-20241022"
+      }}
+    }}
+  }}
+}}
+```
+
+**Note:** Replace `YOUR_API_KEY_HERE` with your actual API key.
 
 ## Persistent state + logs
 
@@ -165,7 +193,7 @@ Back up `{storage_path}` to preserve projects/documents.
 
 ## Canonical commands
 
-Run MCP server (stdio):
+Run MCP server (stdio) manually:
 
 ```bash
 python -m shesha.librarian mcp
