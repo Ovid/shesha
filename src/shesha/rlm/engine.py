@@ -165,7 +165,9 @@ class RLMEngine:
         )
 
         # Set up incremental trace writer
-        inc_writer = IncrementalTraceWriter(storage) if storage is not None else None
+        inc_writer = (
+            IncrementalTraceWriter(storage, suppress_errors=True) if storage is not None else None
+        )
         trace_finalized = False
         if inc_writer is not None and project_id is not None:
             trace_id = str(uuid.uuid4())
@@ -195,7 +197,7 @@ class RLMEngine:
                 status=status,
             )
             if storage is not None and project_id is not None:
-                TraceWriter(storage).cleanup_old_traces(project_id)
+                TraceWriter(storage, suppress_errors=True).cleanup_old_traces(project_id)
 
         # Initialize LLM client
         llm = LLMClient(model=self.model, system_prompt=system_prompt, api_key=self.api_key)

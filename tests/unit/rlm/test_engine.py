@@ -338,6 +338,103 @@ class TestRLMEngine:
         assert "Untrusted document data" in prompt_text
 
 
+class TestEngineTraceWriterSuppression:
+    """Tests for engine trace writer suppress_errors configuration."""
+
+    @patch("shesha.rlm.engine.ContainerExecutor")
+    @patch("shesha.rlm.engine.LLMClient")
+    def test_engine_creates_incremental_trace_writer_with_suppress_errors(
+        self,
+        mock_llm_cls: MagicMock,
+        mock_executor_cls: MagicMock,
+        tmp_path: Path,
+    ) -> None:
+        """Engine creates IncrementalTraceWriter with suppress_errors=True."""
+        from shesha.storage.filesystem import FilesystemStorage
+
+        storage = FilesystemStorage(root_path=tmp_path)
+        storage.create_project("test-project")
+
+        mock_llm = MagicMock()
+        mock_llm.complete.return_value = MagicMock(
+            content="```repl\nFINAL('answer')\n```",
+            prompt_tokens=100,
+            completion_tokens=50,
+            total_tokens=150,
+        )
+        mock_llm_cls.return_value = mock_llm
+
+        mock_executor = MagicMock()
+        mock_executor.execute.return_value = MagicMock(
+            stdout="",
+            stderr="",
+            error=None,
+            final_answer="answer",
+        )
+        mock_executor_cls.return_value = mock_executor
+
+        with patch("shesha.rlm.engine.IncrementalTraceWriter") as mock_inc_writer_cls:
+            mock_inc_writer = MagicMock()
+            mock_inc_writer.path = None
+            mock_inc_writer_cls.return_value = mock_inc_writer
+
+            engine = RLMEngine(model="test-model")
+            engine.query(
+                documents=["doc content"],
+                question="What?",
+                storage=storage,
+                project_id="test-project",
+            )
+
+            mock_inc_writer_cls.assert_called_once_with(storage, suppress_errors=True)
+
+    @patch("shesha.rlm.engine.ContainerExecutor")
+    @patch("shesha.rlm.engine.LLMClient")
+    def test_engine_creates_trace_writer_with_suppress_errors(
+        self,
+        mock_llm_cls: MagicMock,
+        mock_executor_cls: MagicMock,
+        tmp_path: Path,
+    ) -> None:
+        """Engine creates TraceWriter with suppress_errors=True for cleanup."""
+        from shesha.storage.filesystem import FilesystemStorage
+
+        storage = FilesystemStorage(root_path=tmp_path)
+        storage.create_project("test-project")
+
+        mock_llm = MagicMock()
+        mock_llm.complete.return_value = MagicMock(
+            content="```repl\nFINAL('answer')\n```",
+            prompt_tokens=100,
+            completion_tokens=50,
+            total_tokens=150,
+        )
+        mock_llm_cls.return_value = mock_llm
+
+        mock_executor = MagicMock()
+        mock_executor.execute.return_value = MagicMock(
+            stdout="",
+            stderr="",
+            error=None,
+            final_answer="answer",
+        )
+        mock_executor_cls.return_value = mock_executor
+
+        with patch("shesha.rlm.engine.TraceWriter") as mock_writer_cls:
+            mock_writer = MagicMock()
+            mock_writer_cls.return_value = mock_writer
+
+            engine = RLMEngine(model="test-model")
+            engine.query(
+                documents=["doc content"],
+                question="What?",
+                storage=storage,
+                project_id="test-project",
+            )
+
+            mock_writer_cls.assert_called_once_with(storage, suppress_errors=True)
+
+
 class TestEngineTraceWriting:
     """Tests for trace writing integration."""
 

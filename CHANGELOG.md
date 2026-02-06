@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `TraceWriteError` and `EngineNotConfiguredError` exception classes
+- `suppress_errors` parameter on `TraceWriter` and `IncrementalTraceWriter` for opt-in error suppression
+
+### Changed
+
+- `Shesha.get_project`, `get_project_info`, `get_analysis_status`, `get_analysis`, `generate_analysis`, `check_repo_for_updates` now raise `ProjectNotFoundError` instead of `ValueError`
+- `Shesha.check_repo_for_updates` raises `RepoError` instead of `ValueError` when no repo URL is stored
+- `Shesha._ingest_repo` now catches only `ParseError`/`NoParserError` (expected) and propagates unexpected errors as `RepoIngestError`
+- `Project.query()` raises `EngineNotConfiguredError` instead of `RuntimeError`
+- `TraceWriter` and `IncrementalTraceWriter` raise `TraceWriteError` by default on failure instead of silently returning `None`
+- Engine passes `suppress_errors=True` to trace writers for best-effort tracing during queries
+
+### Added
+
 - Sandbox namespace `reset` action to clear state between queries
 - Experimental multi-repo PRD analysis (`shesha.experimental.multi_repo`)
   - `MultiRepoAnalyzer` for analyzing how PRDs impact multiple codebases

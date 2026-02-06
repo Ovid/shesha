@@ -11,7 +11,13 @@ from docker.errors import DockerException
 
 from shesha.analysis import AnalysisGenerator
 from shesha.config import SheshaConfig
-from shesha.exceptions import RepoIngestError
+from shesha.exceptions import (
+    NoParserError,
+    ParseError,
+    ProjectNotFoundError,
+    RepoError,
+    RepoIngestError,
+)
 from shesha.models import ParsedDocument, ProjectInfo, RepoProjectResult
 from shesha.parser import create_default_registry
 from shesha.project import Project
@@ -126,7 +132,7 @@ class Shesha:
     def get_project(self, project_id: str) -> Project:
         """Get an existing project."""
         if not self._storage.project_exists(project_id):
-            raise ValueError(f"Project '{project_id}' does not exist")
+            raise ProjectNotFoundError(project_id)
         return Project(
             project_id=project_id,
             storage=self._storage,
@@ -165,10 +171,10 @@ class Shesha:
             and analysis status.
 
         Raises:
-            ValueError: If project doesn't exist.
+            ProjectNotFoundError: If project doesn't exist.
         """
         if not self._storage.project_exists(project_id):
-            raise ValueError(f"Project '{project_id}' does not exist")
+            raise ProjectNotFoundError(project_id)
 
         source_url = self._repo_ingester.get_source_url(project_id)
         analysis_status = self.get_analysis_status(project_id)
@@ -209,10 +215,10 @@ class Shesha:
             "missing" if no analysis exists.
 
         Raises:
-            ValueError: If project doesn't exist.
+            ProjectNotFoundError: If project doesn't exist.
         """
         if not self._storage.project_exists(project_id):
-            raise ValueError(f"Project '{project_id}' does not exist")
+            raise ProjectNotFoundError(project_id)
 
         analysis = self._storage.load_analysis(project_id)
         if analysis is None:
@@ -237,10 +243,10 @@ class Shesha:
             RepoAnalysis if it exists, None otherwise.
 
         Raises:
-            ValueError: If project doesn't exist.
+            ProjectNotFoundError: If project doesn't exist.
         """
         if not self._storage.project_exists(project_id):
-            raise ValueError(f"Project '{project_id}' does not exist")
+            raise ProjectNotFoundError(project_id)
         return self._storage.load_analysis(project_id)
 
     def get_project_sha(self, project_id: str) -> str | None:
@@ -264,10 +270,10 @@ class Shesha:
             The generated RepoAnalysis.
 
         Raises:
-            ValueError: If project doesn't exist.
+            ProjectNotFoundError: If project doesn't exist.
         """
         if not self._storage.project_exists(project_id):
-            raise ValueError(f"Project '{project_id}' does not exist")
+            raise ProjectNotFoundError(project_id)
 
         generator = AnalysisGenerator(self)
         analysis = generator.generate(project_id)
@@ -287,14 +293,15 @@ class Shesha:
             RepoProjectResult with status 'unchanged' or 'updates_available'.
 
         Raises:
-            ValueError: If project doesn't exist or has no stored repo URL.
+            ProjectNotFoundError: If project doesn't exist.
+            RepoError: If project has no stored repo URL.
         """
         if not self._storage.project_exists(project_id):
-            raise ValueError(f"Project '{project_id}' does not exist")
+            raise ProjectNotFoundError(project_id)
 
         url = self._repo_ingester.get_source_url(project_id)
         if not url:
-            raise ValueError(
+            raise RepoError(
                 f"No repository URL found for project '{project_id}'. "
                 "This project may not have been created from a repository."
             )
@@ -460,9 +467,11 @@ class Shesha:
                 )
                 self._storage.store_document(name, doc)
                 files_ingested += 1
-            except Exception as e:
+            except (ParseError, NoParserError) as e:
                 files_skipped += 1
                 warnings.append(f"Failed to parse {file_path}: {e}")
+            except Exception as e:
+                raise RepoIngestError(url, cause=e) from e
 
         sha = self._repo_ingester.get_sha_from_path(repo_path)
         if sha:

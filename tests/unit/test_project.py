@@ -5,6 +5,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from shesha.exceptions import EngineNotConfiguredError
 from shesha.models import ParsedDocument
 from shesha.project import Project
 from shesha.rlm.trace import StepType
@@ -72,6 +73,19 @@ class TestProject:
         project.delete_document("old.txt")
 
         mock_storage.delete_document.assert_called_with("test-project", "old.txt")
+
+    def test_query_without_engine_raises_engine_not_configured(
+        self, mock_storage: MagicMock, mock_registry: MagicMock
+    ):
+        """Query with no engine raises EngineNotConfiguredError."""
+        project = Project(
+            project_id="test-project",
+            storage=mock_storage,
+            parser_registry=mock_registry,
+        )
+
+        with pytest.raises(EngineNotConfiguredError):
+            project.query("test question")
 
     def test_query_passes_on_progress_to_engine(
         self, mock_storage: MagicMock, mock_registry: MagicMock

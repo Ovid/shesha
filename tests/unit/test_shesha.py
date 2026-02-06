@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from shesha import Shesha
+from shesha.exceptions import ParseError, ProjectNotFoundError, RepoError, RepoIngestError
 from shesha.models import RepoProjectResult
 
 
@@ -370,6 +371,66 @@ class TestCreateProjectFromRepo:
                 assert "not a git repository" in str(exc_info.value).lower()
 
 
+class TestIngestRepoErrorHandling:
+    """Tests for _ingest_repo error handling."""
+
+    def test_parse_error_is_caught_and_recorded_as_warning(self, tmp_path: Path):
+        """ParseError during file parsing is caught and recorded as a warning."""
+        with patch("shesha.shesha.docker"), patch("shesha.shesha.ContainerPool"):
+            with patch("shesha.shesha.RepoIngester") as mock_ingester_cls:
+                mock_ingester = MagicMock()
+                mock_ingester_cls.return_value = mock_ingester
+
+                mock_ingester.is_local_path.return_value = True
+                mock_ingester.get_saved_sha.return_value = None
+                mock_ingester.get_sha_from_path.return_value = "abc123"
+                mock_ingester.list_files_from_path.return_value = ["bad.py"]
+                mock_ingester.repos_dir = tmp_path / "repos"
+
+                shesha = Shesha(model="test-model", storage_path=tmp_path)
+
+                with patch.object(shesha._parser_registry, "find_parser") as mock_find:
+                    mock_parser = MagicMock()
+                    mock_parser.parse.side_effect = ParseError("bad.py", "syntax error")
+                    mock_find.return_value = mock_parser
+
+                    result = shesha.create_project_from_repo(
+                        url="/path/to/local/repo",
+                        name="parse-err-project",
+                    )
+
+                assert result.files_skipped == 1
+                assert any("bad.py" in w for w in result.warnings)
+
+    def test_unexpected_error_propagates_as_repo_ingest_error(self, tmp_path: Path):
+        """Unexpected exceptions propagate as RepoIngestError."""
+        with patch("shesha.shesha.docker"), patch("shesha.shesha.ContainerPool"):
+            with patch("shesha.shesha.RepoIngester") as mock_ingester_cls:
+                mock_ingester = MagicMock()
+                mock_ingester_cls.return_value = mock_ingester
+
+                mock_ingester.is_local_path.return_value = True
+                mock_ingester.get_saved_sha.return_value = None
+                mock_ingester.get_sha_from_path.return_value = "abc123"
+                mock_ingester.list_files_from_path.return_value = ["crash.py"]
+                mock_ingester.repos_dir = tmp_path / "repos"
+
+                shesha = Shesha(model="test-model", storage_path=tmp_path)
+
+                with patch.object(shesha._parser_registry, "find_parser") as mock_find:
+                    mock_parser = MagicMock()
+                    mock_parser.parse.side_effect = OSError("disk full")
+                    mock_find.return_value = mock_parser
+
+                    with pytest.raises(RepoIngestError) as exc_info:
+                        shesha.create_project_from_repo(
+                            url="/path/to/local/repo",
+                            name="crash-project",
+                        )
+
+                    assert isinstance(exc_info.value.__cause__, OSError)
+
+
 class TestCheckRepoForUpdates:
     """Tests for check_repo_for_updates method."""
 
@@ -417,17 +478,17 @@ class TestCheckRepoForUpdates:
                 assert result.status == "updates_available"
 
     def test_raises_when_project_not_found(self, tmp_path: Path):
-        """check_repo_for_updates raises ValueError for non-existent project."""
+        """check_repo_for_updates raises ProjectNotFoundError for non-existent project."""
         with patch("shesha.shesha.docker"), patch("shesha.shesha.ContainerPool"):
             shesha = Shesha(model="test-model", storage_path=tmp_path)
 
-            with pytest.raises(ValueError) as exc_info:
+            with pytest.raises(ProjectNotFoundError) as exc_info:
                 shesha.check_repo_for_updates("nonexistent")
 
             assert "does not exist" in str(exc_info.value)
 
     def test_raises_when_no_repo_url(self, tmp_path: Path):
-        """check_repo_for_updates raises ValueError when no repo URL stored."""
+        """check_repo_for_updates raises RepoError when no repo URL stored."""
         with patch("shesha.shesha.docker"), patch("shesha.shesha.ContainerPool"):
             with patch("shesha.shesha.RepoIngester") as mock_ingester_cls:
                 mock_ingester = MagicMock()
@@ -439,7 +500,7 @@ class TestCheckRepoForUpdates:
                 shesha = Shesha(model="test-model", storage_path=tmp_path)
                 shesha._storage.create_project("my-project")
 
-                with pytest.raises(ValueError) as exc_info:
+                with pytest.raises(RepoError) as exc_info:
                     shesha.check_repo_for_updates("my-project")
 
                 assert "No repository URL" in str(exc_info.value)
@@ -533,11 +594,11 @@ class TestGetProjectInfo:
                 assert info.source_exists is False
 
     def test_raises_for_nonexistent_project(self, tmp_path: Path):
-        """get_project_info raises ValueError for non-existent project."""
+        """get_project_info raises ProjectNotFoundError for non-existent project."""
         with patch("shesha.shesha.docker"), patch("shesha.shesha.ContainerPool"):
             shesha = Shesha(model="test-model", storage_path=tmp_path)
 
-            with pytest.raises(ValueError) as exc_info:
+            with pytest.raises(ProjectNotFoundError) as exc_info:
                 shesha.get_project_info("nonexistent")
 
             assert "does not exist" in str(exc_info.value)
@@ -729,7 +790,7 @@ class TestAnalysisStatus:
 
     def test_get_analysis_status_nonexistent_project_raises(self, shesha_instance: Shesha):
         """get_analysis_status raises for nonexistent project."""
-        with pytest.raises(ValueError, match="does not exist"):
+        with pytest.raises(ProjectNotFoundError, match="does not exist"):
             shesha_instance.get_analysis_status("no-such-project")
 
 
@@ -773,7 +834,7 @@ class TestGetAnalysis:
 
     def test_get_analysis_nonexistent_project_raises(self, shesha_instance: Shesha):
         """get_analysis raises for nonexistent project."""
-        with pytest.raises(ValueError, match="does not exist"):
+        with pytest.raises(ProjectNotFoundError, match="does not exist"):
             shesha_instance.get_analysis("no-such-project")
 
 
@@ -834,5 +895,5 @@ class TestGenerateAnalysis:
 
     def test_generate_analysis_nonexistent_project_raises(self, shesha_instance):
         """generate_analysis raises for nonexistent project."""
-        with pytest.raises(ValueError, match="does not exist"):
+        with pytest.raises(ProjectNotFoundError, match="does not exist"):
             shesha_instance.generate_analysis("no-such-project")

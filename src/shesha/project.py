@@ -2,6 +2,7 @@
 
 from pathlib import Path
 
+from shesha.exceptions import EngineNotConfiguredError
 from shesha.parser.registry import ParserRegistry
 from shesha.rlm.engine import ProgressCallback, QueryResult, RLMEngine
 from shesha.storage.base import StorageBackend
@@ -61,7 +62,7 @@ class Project:
     ) -> QueryResult:
         """Query the documents with a question."""
         if self._rlm_engine is None:
-            raise RuntimeError("No RLM engine configured for queries")
+            raise EngineNotConfiguredError()
 
         docs = self._storage.load_all_documents(self.project_id)
         # Only pass storage for tracing if it's a FilesystemStorage

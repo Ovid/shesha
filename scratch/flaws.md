@@ -25,22 +25,8 @@
       - Engine (or TraceWriter) should depend on that protocol, not concrete FS storage.
     - Alternatively, move trace writing behind an injected `TraceSink` interface with a filesystem implementation.
 
-- **Error-handling is inconsistent and bypasses the project’s own exception hierarchy**
-  - **Where:**
-    - `src/shesha/shesha.py`: uses `ValueError` for missing project/repo URL; catches broad `Exception` during parsing and converts to warning strings.
-    - `src/shesha/storage/filesystem.py`: uses domain exceptions (`ProjectNotFoundError`, etc.).
-    - `src/shesha/rlm/trace_writer.py`: swallows all exceptions and returns `None`.
-    - `src/shesha/sandbox/executor.py`: returns `ExecutionResult(status="error", error=...)` instead of raising.
-  - **Why problematic (impact):**
-    - Callers can’t reliably handle failures (sometimes exceptions, sometimes status strings, sometimes silent `None`).
-    - Makes it difficult to build a service wrapper with correct HTTP mappings and observability.
-  - **Concrete mitigations:**
-    - Establish a policy:
-      - Domain operations raise `SheshaError` subclasses.
-      - “Best-effort” operations return structured results with explicit warnings, but **do not** silently swallow unexpected errors.
-    - Replace `ValueError` in `Shesha.get_project`, `get_project_info`, `check_repo_for_updates` with `ProjectNotFoundError` / `RepoError` variants.
-    - For ingestion parsing loop (`Shesha._ingest_repo`), catch expected parsing exceptions (`ParseError`) but let unexpected exceptions bubble up (or wrap in `RepoIngestError` with cause).
-    - In `TraceWriter.write_trace`, either raise `TraceWriteError` or accept a logger callback; avoid returning `None` silently unless explicitly configured.
+- **~~Error-handling is inconsistent and bypasses the project's own exception hierarchy~~** — RESOLVED
+  - Replaced all `ValueError` raises in `Shesha` API with `ProjectNotFoundError` / `RepoError`. Narrowed `_ingest_repo` broad `except Exception` to catch only `ParseError`/`NoParserError` (expected), propagating unexpected errors as `RepoIngestError`. Replaced `RuntimeError` in `Project.query()` with `EngineNotConfiguredError`. `TraceWriter` and `IncrementalTraceWriter` now raise `TraceWriteError` by default, with opt-in `suppress_errors=True` (used by engine for best-effort tracing). `executor.py` returning `ExecutionResult(status="error")` left as-is (by-design protocol boundary).
 
 - **Configuration layering exists but isn’t used consistently; some config values are unused**
   - **Where:**

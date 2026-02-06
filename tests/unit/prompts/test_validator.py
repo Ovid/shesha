@@ -91,10 +91,7 @@ def test_validate_subcall_missing_untrusted_tags_fails():
 def test_validate_subcall_with_untrusted_tags_passes():
     """validate_prompt accepts subcall.md with untrusted_document_content tags."""
     content = (
-        "{instruction}\n\n"
-        "<untrusted_document_content>\n"
-        "{content}\n"
-        "</untrusted_document_content>\n"
+        "{instruction}\n\n<untrusted_document_content>\n{content}\n</untrusted_document_content>\n"
     )
     # Should not raise
     validate_prompt("subcall.md", content)
