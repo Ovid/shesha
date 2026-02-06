@@ -16,6 +16,7 @@ class ProjectInfo:
     source_url: str | None
     is_local: bool
     source_exists: bool
+    analysis_status: Literal["current", "stale", "missing"] | None = None
 
 
 @dataclass

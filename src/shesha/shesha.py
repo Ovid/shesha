@@ -160,7 +160,8 @@ class Shesha:
             project_id: ID of the project.
 
         Returns:
-            ProjectInfo with source URL, whether it's local, and source existence.
+            ProjectInfo with source URL, whether it's local, source existence,
+            and analysis status.
 
         Raises:
             ValueError: If project doesn't exist.
@@ -169,6 +170,7 @@ class Shesha:
             raise ValueError(f"Project '{project_id}' does not exist")
 
         source_url = self._repo_ingester.get_source_url(project_id)
+        analysis_status = self.get_analysis_status(project_id)
 
         if source_url is None:
             return ProjectInfo(
@@ -176,6 +178,7 @@ class Shesha:
                 source_url=None,
                 is_local=False,
                 source_exists=True,
+                analysis_status=analysis_status,
             )
 
         is_local = self._repo_ingester.is_local_path(source_url)
@@ -190,6 +193,7 @@ class Shesha:
             source_url=source_url,
             is_local=is_local,
             source_exists=source_exists,
+            analysis_status=analysis_status,
         )
 
     def get_analysis_status(

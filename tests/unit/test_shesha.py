@@ -596,6 +596,40 @@ class TestExtractRepoName:
         assert shesha._extract_repo_name("not-a-url") == "unnamed-repo"
 
 
+class TestGetProjectInfoWithAnalysis:
+    """Tests for get_project_info including analysis_status."""
+
+    def test_get_project_info_includes_analysis_status(self, shesha_instance):
+        """get_project_info includes analysis_status field."""
+        shesha_instance.create_project("info-with-status")
+
+        info = shesha_instance.get_project_info("info-with-status")
+
+        assert info.analysis_status == "missing"  # No analysis yet
+
+    def test_get_project_info_analysis_status_current(self, shesha_instance):
+        """get_project_info shows 'current' when analysis matches SHA."""
+        from shesha.models import RepoAnalysis
+
+        shesha_instance.create_project("info-current")
+        shesha_instance._repo_ingester.save_sha("info-current", "sha123")
+        shesha_instance._repo_ingester.save_source_url("info-current", "/fake")
+
+        analysis = RepoAnalysis(
+            version="1",
+            generated_at="2026-02-06T10:30:00Z",
+            head_sha="sha123",
+            overview="Test",
+            components=[],
+            external_dependencies=[],
+        )
+        shesha_instance._storage.store_analysis("info-current", analysis)
+
+        info = shesha_instance.get_project_info("info-current")
+
+        assert info.analysis_status == "current"
+
+
 class TestAnalysisStatus:
     """Tests for analysis status checking."""
 

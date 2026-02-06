@@ -247,6 +247,37 @@ class TestAnalysisExternalDep:
         assert dep.optional is True
 
 
+class TestProjectInfoAnalysisStatus:
+    """Tests for ProjectInfo.analysis_status field."""
+
+    def test_project_info_with_analysis_status(self):
+        """ProjectInfo can include analysis_status."""
+        from shesha.models import ProjectInfo
+
+        info = ProjectInfo(
+            project_id="my-project",
+            source_url="https://github.com/org/repo",
+            is_local=False,
+            source_exists=True,
+            analysis_status="current",
+        )
+
+        assert info.analysis_status == "current"
+
+    def test_project_info_analysis_status_defaults_none(self):
+        """ProjectInfo.analysis_status defaults to None."""
+        from shesha.models import ProjectInfo
+
+        info = ProjectInfo(
+            project_id="my-project",
+            source_url=None,
+            is_local=False,
+            source_exists=True,
+        )
+
+        assert info.analysis_status is None
+
+
 class TestRepoAnalysis:
     """Tests for RepoAnalysis dataclass."""
 
