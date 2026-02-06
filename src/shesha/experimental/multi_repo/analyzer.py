@@ -143,7 +143,12 @@ class MultiRepoAnalyzer:
         return "\n".join(lines)
 
     def _extract_json(self, text: str) -> dict[str, Any] | None:
-        """Extract JSON object from text that may contain markdown."""
+        """Extract JSON object from text that may contain markdown.
+
+        Note: Similar to AnalysisGenerator._extract_json, but with a
+        fast-path optimization for large multi-repo responses. Keep both
+        until a third call site justifies a shared utility.
+        """
         # Try to find JSON in code blocks first (greedy match for nested braces)
         json_match = re.search(r"```(?:json)?\s*(\{.*\})\s*```", text, re.DOTALL)
         if json_match:

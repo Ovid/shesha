@@ -42,6 +42,11 @@ class AnalysisGenerator:
     def _extract_json(self, text: str) -> dict[str, Any] | None:
         """Extract JSON object from text that may contain markdown.
 
+        Note: Similar to MultiRepoAnalyzer._extract_json, but intentionally
+        separate. The multi-repo version has a fast-path optimization for
+        large responses. Keep both until a third call site justifies a
+        shared utility.
+
         Args:
             text: Text that may contain JSON, possibly in markdown code blocks.
 
