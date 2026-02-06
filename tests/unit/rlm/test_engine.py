@@ -4,6 +4,8 @@ import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from shesha.rlm.engine import QueryResult, RLMEngine, extract_code_blocks
 from shesha.rlm.trace import StepType, TokenUsage, Trace
 
@@ -239,11 +241,13 @@ class TestRLMEngine:
         mock_executor.stop.assert_called_once()
 
     @patch("shesha.rlm.engine.LLMClient")
-    def test_engine_returns_error_for_oversized_subcall_content(
+    def test_engine_raises_for_oversized_subcall_content(
         self,
         mock_llm_cls: MagicMock,
     ):
-        """Engine returns error string when subcall content exceeds limit."""
+        """Engine raises SubcallContentError when subcall content exceeds limit."""
+        from shesha.sandbox.executor import SubcallContentError
+
         # Create engine with small limit for testing
         engine = RLMEngine(model="test-model", max_subcall_content_chars=1000)
 
@@ -252,19 +256,19 @@ class TestRLMEngine:
         token_usage = TokenUsage()
         large_content = "x" * 5000  # 5K chars, exceeds 1K limit
 
-        result = engine._handle_llm_query(
-            instruction="Summarize this",
-            content=large_content,
-            trace=trace,
-            token_usage=token_usage,
-            iteration=0,
-        )
+        with pytest.raises(SubcallContentError) as exc_info:
+            engine._handle_llm_query(
+                instruction="Summarize this",
+                content=large_content,
+                trace=trace,
+                token_usage=token_usage,
+                iteration=0,
+            )
 
-        # Should return error string, not call the LLM
-        assert "Error" in result
-        assert "5,000" in result or "5000" in result  # actual size
-        assert "1,000" in result or "1000" in result  # limit
-        assert "chunk" in result.lower()  # guidance to chunk smaller
+        error_msg = str(exc_info.value)
+        assert "5,000" in error_msg or "5000" in error_msg  # actual size
+        assert "1,000" in error_msg or "1000" in error_msg  # limit
+        assert "chunk" in error_msg.lower()  # guidance to chunk smaller
         mock_llm_cls.assert_not_called()  # No sub-LLM call made
 
     @patch("shesha.rlm.engine.LLMClient")

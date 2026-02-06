@@ -19,6 +19,12 @@ class ProtocolError(Exception):
     pass
 
 
+class SubcallContentError(Exception):
+    """Sub-LLM call rejected (e.g., content exceeds size limit)."""
+
+    pass
+
+
 # Protocol limits to prevent DoS attacks from malicious containers
 MAX_BUFFER_SIZE = 10 * 1024 * 1024  # 10 MB max buffer
 MAX_LINE_LENGTH = 1 * 1024 * 1024  # 1 MB max single line
@@ -159,19 +165,32 @@ class ContainerExecutor:
                         )
                     else:
                         # Call handler and send response back
-                        llm_response = self.llm_query_handler(
-                            result["instruction"],
-                            result["content"],
-                        )
-                        self._send_raw(
-                            json.dumps(
-                                {
-                                    "action": "llm_response",
-                                    "result": llm_response,
-                                }
+                        try:
+                            llm_response = self.llm_query_handler(
+                                result["instruction"],
+                                result["content"],
                             )
-                            + "\n"
-                        )
+                        except SubcallContentError as e:
+                            # Content rejected — send error so sandbox raises
+                            self._send_raw(
+                                json.dumps(
+                                    {
+                                        "action": "llm_response",
+                                        "error": str(e),
+                                    }
+                                )
+                                + "\n"
+                            )
+                        else:
+                            self._send_raw(
+                                json.dumps(
+                                    {
+                                        "action": "llm_response",
+                                        "result": llm_response,
+                                    }
+                                )
+                                + "\n"
+                            )
                     continue
 
                 # This is the final execution result

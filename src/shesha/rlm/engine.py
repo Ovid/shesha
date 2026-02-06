@@ -13,7 +13,7 @@ from shesha.prompts import PromptLoader
 from shesha.rlm.prompts import MAX_SUBCALL_CHARS, wrap_repl_output, wrap_subcall_content
 from shesha.rlm.trace import StepType, TokenUsage, Trace, TraceStep
 from shesha.rlm.trace_writer import IncrementalTraceWriter, TraceWriter
-from shesha.sandbox.executor import ContainerExecutor
+from shesha.sandbox.executor import ContainerExecutor, SubcallContentError
 from shesha.sandbox.pool import ContainerPool
 from shesha.storage.base import StorageBackend
 
@@ -90,7 +90,7 @@ class RLMEngine:
         # Check content size limit
         if len(content) > self.max_subcall_content_chars:
             error_msg = (
-                f"Error: Content size ({len(content):,} chars) exceeds the sub-LLM limit "
+                f"Content size ({len(content):,} chars) exceeds the sub-LLM limit "
                 f"of {self.max_subcall_content_chars:,} chars. Please chunk the content "
                 f"into smaller pieces and make multiple llm_query calls."
             )
@@ -103,7 +103,7 @@ class RLMEngine:
                 on_step(step)
             if on_progress:
                 on_progress(StepType.SUBCALL_RESPONSE, iteration, error_msg)
-            return error_msg
+            raise SubcallContentError(error_msg)
 
         # Wrap content in untrusted tags (code-level security boundary)
         wrapped_content = wrap_subcall_content(content)
