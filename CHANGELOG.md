@@ -7,35 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-
-- `Project.upload()` with directories now uses relative paths for document names, preventing silent overwrites when files in different subdirectories share the same basename (e.g., `src/foo/main.py` and `src/bar/main.py`)
-
-### Changed
-
-- `Shesha()` no longer requires Docker at construction time; Docker check and container pool creation are deferred to `start()`, enabling ingest-only workflows without a Docker daemon
-
 ### Added
 
 - `TraceWriteError` and `EngineNotConfiguredError` exception classes
 - `suppress_errors` parameter on `TraceWriter` and `IncrementalTraceWriter` for opt-in error suppression
-
-### Changed
-
-- `Shesha.get_project`, `get_project_info`, `get_analysis_status`, `get_analysis`, `generate_analysis`, `check_repo_for_updates` now raise `ProjectNotFoundError` instead of `ValueError`
-- `Shesha.check_repo_for_updates` raises `RepoError` instead of `ValueError` when no repo URL is stored
-- `Shesha._ingest_repo` now catches only `ParseError`/`NoParserError` (expected) and propagates unexpected errors as `RepoIngestError`
-- `Project.query()` raises `EngineNotConfiguredError` instead of `RuntimeError`
-- `TraceWriter` and `IncrementalTraceWriter` raise `TraceWriteError` by default on failure instead of silently returning `None`
-- Engine passes `suppress_errors=True` to trace writers for best-effort tracing during queries
-- `TraceWriter` and `IncrementalTraceWriter` now accept `StorageBackend` protocol instead of `FilesystemStorage`
-- `RLMEngine.query()` accepts `StorageBackend` protocol instead of `FilesystemStorage`
-- `Project.query()` always passes storage to engine (removed `FilesystemStorage` special-casing)
-- `Shesha.__init__` now uses `SheshaConfig.load()` by default, honoring env vars and config files
-- `RLMEngine` now respects `max_traces_per_project` config setting for trace cleanup (previously hardcoded to 50)
-
-### Added
-
 - Sandbox namespace `reset` action to clear state between queries
 - Experimental multi-repo PRD analysis (`shesha.experimental.multi_repo`)
   - `MultiRepoAnalyzer` for analyzing how PRDs impact multiple codebases
@@ -49,8 +24,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `prompts/README.md` documenting prompt customization
 - Session write command (`write` or `write <filename>`) in example scripts (`repo.py`, `barsoom.py`) to save conversation transcripts as markdown files
 
+### Changed
+
+- `Shesha()` no longer requires Docker at construction time; Docker check and container pool creation are deferred to `start()`, enabling ingest-only workflows without a Docker daemon
+- `Shesha.get_project`, `get_project_info`, `get_analysis_status`, `get_analysis`, `generate_analysis`, `check_repo_for_updates` now raise `ProjectNotFoundError` instead of `ValueError`
+- `Shesha.check_repo_for_updates` raises `RepoError` instead of `ValueError` when no repo URL is stored
+- `Shesha._ingest_repo` now catches only `ParseError`/`NoParserError` (expected) and propagates unexpected errors as `RepoIngestError`
+- `Project.query()` raises `EngineNotConfiguredError` instead of `RuntimeError`
+- `TraceWriter` and `IncrementalTraceWriter` raise `TraceWriteError` by default on failure instead of silently returning `None`
+- Engine passes `suppress_errors=True` to trace writers for best-effort tracing during queries
+- `TraceWriter` and `IncrementalTraceWriter` now accept `StorageBackend` protocol instead of `FilesystemStorage`
+- `RLMEngine.query()` accepts `StorageBackend` protocol instead of `FilesystemStorage`
+- `Project.query()` always passes storage to engine (removed `FilesystemStorage` special-casing)
+- `Shesha.__init__` now uses `SheshaConfig.load()` by default, honoring env vars and config files
+- `RLMEngine` now respects `max_traces_per_project` config setting for trace cleanup (previously hardcoded to 50)
+
 ### Fixed
 
+- `Project.upload()` with directories now uses relative paths for document names, preventing silent overwrites when files in different subdirectories share the same basename (e.g., `src/foo/main.py` and `src/bar/main.py`)
 - RLM engine now uses the container pool for queries instead of creating throwaway containers, eliminating cold-start overhead and idle resource waste
 
 ### Removed
