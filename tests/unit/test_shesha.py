@@ -436,9 +436,7 @@ class TestCreateProjectFromRepo:
                 )
 
                 saved_url = mock_ingester.save_source_url.call_args[0][1]
-                assert Path(saved_url).is_absolute(), (
-                    f"Expected absolute path but got: {saved_url}"
-                )
+                assert Path(saved_url).is_absolute(), f"Expected absolute path but got: {saved_url}"
 
     def test_raises_for_non_git_local_path(self, tmp_path: Path):
         """create_project_from_repo raises RepoIngestError for non-git local dirs."""
