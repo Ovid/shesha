@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from shesha.models import ProjectInfo, QueryContext, RepoProjectResult
+from shesha.models import AnalysisComponent, ProjectInfo, QueryContext, RepoProjectResult
 
 
 class TestProjectInfo:
@@ -142,3 +142,59 @@ class TestQueryContext:
         assert ctx.model == "claude-sonnet-4-20250514"
         assert ctx.system_prompt == "You are an assistant..."
         assert ctx.subcall_prompt == "Analyze this..."
+
+
+class TestAnalysisComponent:
+    """Tests for AnalysisComponent dataclass."""
+
+    def test_analysis_component_required_fields(self):
+        """AnalysisComponent stores required fields correctly."""
+        comp = AnalysisComponent(
+            name="Server API",
+            path="server/",
+            description="FastAPI service for chat",
+            apis=[{"type": "rest", "endpoints": ["/api/chat"]}],
+            models=["ChatSession", "Message"],
+            entry_points=["server/main.py"],
+            internal_dependencies=["ai_layer"],
+        )
+
+        assert comp.name == "Server API"
+        assert comp.path == "server/"
+        assert comp.description == "FastAPI service for chat"
+        assert comp.apis == [{"type": "rest", "endpoints": ["/api/chat"]}]
+        assert comp.models == ["ChatSession", "Message"]
+        assert comp.entry_points == ["server/main.py"]
+        assert comp.internal_dependencies == ["ai_layer"]
+
+    def test_analysis_component_optional_fields(self):
+        """AnalysisComponent has optional auth and data_persistence."""
+        comp = AnalysisComponent(
+            name="Web",
+            path="web/",
+            description="Frontend",
+            apis=[],
+            models=[],
+            entry_points=[],
+            internal_dependencies=[],
+            auth="Cognito JWT",
+            data_persistence="LocalStorage",
+        )
+
+        assert comp.auth == "Cognito JWT"
+        assert comp.data_persistence == "LocalStorage"
+
+    def test_analysis_component_defaults_none_for_optional(self):
+        """AnalysisComponent defaults optional fields to None."""
+        comp = AnalysisComponent(
+            name="Simple",
+            path="simple/",
+            description="Simple component",
+            apis=[],
+            models=[],
+            entry_points=[],
+            internal_dependencies=[],
+        )
+
+        assert comp.auth is None
+        assert comp.data_persistence is None

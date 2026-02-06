@@ -2,7 +2,7 @@
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 if TYPE_CHECKING:
     from shesha.project import Project
@@ -60,3 +60,18 @@ class QueryContext:
     model: str
     system_prompt: str
     subcall_prompt: str
+
+
+@dataclass
+class AnalysisComponent:
+    """A component within a codebase analysis."""
+
+    name: str
+    path: str
+    description: str
+    apis: list[dict[str, Any]]
+    models: list[str]
+    entry_points: list[str]
+    internal_dependencies: list[str]
+    auth: str | None = None
+    data_persistence: str | None = None
