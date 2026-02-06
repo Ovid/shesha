@@ -215,6 +215,9 @@ class FilesystemStorage:
             )
             for d in data["external_dependencies"]
         ]
+        kwargs: dict[str, object] = {}
+        if "caveats" in data:
+            kwargs["caveats"] = data["caveats"]
         return RepoAnalysis(
             version=data["version"],
             generated_at=data["generated_at"],
@@ -222,7 +225,7 @@ class FilesystemStorage:
             overview=data["overview"],
             components=components,
             external_dependencies=external_deps,
-            caveats=data.get("caveats", ""),
+            **kwargs,
         )
 
     def delete_analysis(self, project_id: str) -> None:

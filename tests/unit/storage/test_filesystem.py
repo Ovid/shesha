@@ -1,5 +1,6 @@
 """Tests for filesystem storage backend."""
 
+import json
 from pathlib import Path
 
 import pytest
@@ -293,6 +294,29 @@ class TestAnalysisOperations:
         assert loaded.components[0].auth == "JWT"
         assert len(loaded.external_dependencies) == 1
         assert loaded.external_dependencies[0].optional is True
+
+    def test_load_analysis_without_caveats_uses_default(
+        self, storage: FilesystemStorage
+    ) -> None:
+        """Loading analysis without caveats key uses dataclass default, not empty string."""
+        storage.create_project("no-caveats")
+        project_path = storage._project_path("no-caveats")
+        analysis_path = project_path / "_analysis.json"
+        # Write analysis JSON without the "caveats" key (simulates older format)
+        data = {
+            "version": "1",
+            "generated_at": "2026-02-06T10:30:00Z",
+            "head_sha": "abc123",
+            "overview": "Legacy analysis",
+            "components": [],
+            "external_dependencies": [],
+        }
+        analysis_path.write_text(json.dumps(data))
+
+        loaded = storage.load_analysis("no-caveats")
+        assert loaded is not None
+        assert loaded.caveats != "", "Missing caveats should use dataclass default, not ''"
+        assert "AI" in loaded.caveats, "Default caveats should mention AI"
 
     def test_load_analysis_returns_none_when_missing(self, storage: FilesystemStorage) -> None:
         """Loading analysis returns None when no analysis exists."""
