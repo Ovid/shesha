@@ -37,9 +37,7 @@ STORAGE_PATH = Path.home() / ".shesha" / "multi-repo"
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     """Parse command line arguments."""
-    parser = argparse.ArgumentParser(
-        description="Analyze PRD impact across multiple repositories"
-    )
+    parser = argparse.ArgumentParser(description="Analyze PRD impact across multiple repositories")
     parser.add_argument(
         "repos",
         nargs="+",
@@ -83,12 +81,26 @@ def main() -> None:
     # Add repos
     for url in args.repos:
         print(f"Adding: {url}")
-        try:
-            project_id = analyzer.add_repo(url)
+        project_id = analyzer.add_repo(url)
+        if project_id:
             print(f"  -> {project_id}")
-        except Exception as e:
-            print(f"  Error: {e}")
-            sys.exit(1)
+        else:
+            print("  Warning: Failed to add (will continue with other repos)")
+
+    # Check if any repos were added successfully
+    if not analyzer.repos:
+        print("\nError: No repositories could be added.")
+        if analyzer.failed_repos:
+            print("Failed repos:")
+            for url in analyzer.failed_repos:
+                print(f"  - {url}")
+        sys.exit(1)
+
+    # Warn about partial failures
+    if analyzer.failed_repos:
+        failed = len(analyzer.failed_repos)
+        succeeded = len(analyzer.repos)
+        print(f"\nNote: {failed} repo(s) failed, continuing with {succeeded}.")
 
     # Get PRD
     print()
