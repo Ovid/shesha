@@ -1,5 +1,7 @@
 """Tests for citation verification module."""
 
+import pytest
+
 from shesha.rlm.verification import (
     Citation,
     Quote,
@@ -7,6 +9,7 @@ from shesha.rlm.verification import (
     build_verification_code,
     extract_citations,
     extract_quotes,
+    parse_verification_output,
 )
 
 
@@ -181,3 +184,44 @@ class TestBuildVerificationCode:
         code = build_verification_code(f'Found "{long_quote}" in Doc 0.')
         # The code should use at most 60 chars of the quote
         assert "a" * 61 not in code
+
+
+class TestParseVerificationOutput:
+    """Tests for parse_verification_output()."""
+
+    def test_valid_json(self) -> None:
+        """Parses valid JSON verification output."""
+        stdout = '{"citations": [{"doc_id": 3, "found": true}], "quotes": [{"text": "some text here", "doc_id": 3, "found": true}]}'
+        result = parse_verification_output(stdout)
+        assert len(result.citations) == 1
+        assert result.citations[0].doc_id == 3
+        assert result.citations[0].found is True
+        assert len(result.quotes) == 1
+        assert result.quotes[0].found is True
+
+    def test_failed_quote(self) -> None:
+        """Parses output with a failed quote."""
+        stdout = '{"citations": [{"doc_id": 0, "found": true}], "quotes": [{"text": "fabricated text", "doc_id": -1, "found": false}]}'
+        result = parse_verification_output(stdout)
+        assert result.quotes[0].found is False
+        assert result.all_valid is False
+
+    def test_empty_result(self) -> None:
+        """Parses empty citations/quotes."""
+        stdout = '{"citations": [], "quotes": []}'
+        result = parse_verification_output(stdout)
+        assert result.citations == []
+        assert result.quotes == []
+        assert result.all_valid is True
+
+    def test_invalid_json_raises(self) -> None:
+        """Raises ValueError on invalid JSON."""
+        with pytest.raises(ValueError, match="verification output"):
+            parse_verification_output("not json at all")
+
+    def test_json_mixed_with_other_stdout(self) -> None:
+        """Extracts JSON line even when mixed with other output."""
+        stdout = 'Some debug output\n{"citations": [{"doc_id": 1, "found": true}], "quotes": []}\nMore output'
+        result = parse_verification_output(stdout)
+        assert len(result.citations) == 1
+        assert result.citations[0].doc_id == 1

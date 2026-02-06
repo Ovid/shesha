@@ -133,3 +133,28 @@ def build_verification_code(answer: str) -> str:
     )
 
     return "\n".join(lines)
+
+
+def parse_verification_output(stdout: str) -> VerificationResult:
+    """Parse JSON verification output from sandbox execution.
+
+    Scans stdout lines for a JSON object with 'citations' and 'quotes' keys.
+    Raises ValueError if no valid verification JSON is found.
+    """
+    for line in stdout.strip().splitlines():
+        line = line.strip()
+        if not line.startswith("{"):
+            continue
+        try:
+            data = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if "citations" in data and "quotes" in data:
+            citations = [Citation(doc_id=c["doc_id"], found=c["found"]) for c in data["citations"]]
+            quotes = [
+                Quote(text=q["text"], doc_id=q["doc_id"], found=q["found"])
+                for q in data["quotes"]
+            ]
+            return VerificationResult(citations=citations, quotes=quotes)
+
+    raise ValueError("Could not parse verification output: no valid JSON found")
