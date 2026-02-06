@@ -21,6 +21,8 @@ EXTENSION_TO_LANGUAGE: dict[str, str] = {
     ".go": "go",
     ".rs": "rust",
     ".rb": "ruby",
+    ".pl": "perl",
+    ".pm": "perl",
     ".php": "php",
     ".swift": "swift",
     ".kt": "kotlin",

@@ -417,3 +417,291 @@ class TestWriteSession:
         result = write_session(history, "project", str(filepath))
 
         assert result == str(filepath)
+
+
+class TestAnalysisCommands:
+    """Tests for analysis command detection."""
+
+    def test_is_analysis_command_analysis(self) -> None:
+        """'analysis' is recognized as analysis command."""
+        from examples.script_utils import is_analysis_command
+
+        assert is_analysis_command("analysis") is True
+
+    def test_is_analysis_command_show_analysis(self) -> None:
+        """'show analysis' is recognized as analysis command."""
+        from examples.script_utils import is_analysis_command
+
+        assert is_analysis_command("show analysis") is True
+
+    def test_is_analysis_command_case_insensitive(self) -> None:
+        """Analysis command is case insensitive."""
+        from examples.script_utils import is_analysis_command
+
+        assert is_analysis_command("ANALYSIS") is True
+        assert is_analysis_command("Analysis") is True
+
+    def test_is_analysis_command_other(self) -> None:
+        """Other commands are not analysis commands."""
+        from examples.script_utils import is_analysis_command
+
+        assert is_analysis_command("help") is False
+        assert is_analysis_command("quit") is False
+
+
+class TestRegenerateCommands:
+    """Tests for regenerate command detection."""
+
+    def test_is_regenerate_command_analyze(self) -> None:
+        """'analyze' is recognized as regenerate command."""
+        from examples.script_utils import is_regenerate_command
+
+        assert is_regenerate_command("analyze") is True
+
+    def test_is_regenerate_command_regenerate(self) -> None:
+        """'regenerate analysis' is recognized as regenerate command."""
+        from examples.script_utils import is_regenerate_command
+
+        assert is_regenerate_command("regenerate analysis") is True
+
+    def test_is_regenerate_command_case_insensitive(self) -> None:
+        """Regenerate command is case insensitive."""
+        from examples.script_utils import is_regenerate_command
+
+        assert is_regenerate_command("ANALYZE") is True
+
+    def test_is_regenerate_command_other(self) -> None:
+        """Other commands are not regenerate commands."""
+        from examples.script_utils import is_regenerate_command
+
+        assert is_regenerate_command("analysis") is False
+        assert is_regenerate_command("help") is False
+
+
+class TestFormatAnalysisAsContext:
+    """Tests for format_analysis_as_context function."""
+
+    def test_includes_header_and_overview(self) -> None:
+        """Context string includes header and overview text."""
+        from examples.script_utils import format_analysis_as_context
+        from shesha.models import RepoAnalysis
+
+        analysis = RepoAnalysis(
+            version="1",
+            generated_at="2026-02-06T10:30:00Z",
+            head_sha="abc123",
+            overview="A Python web application.",
+            components=[],
+            external_dependencies=[],
+        )
+
+        result = format_analysis_as_context(analysis)
+
+        assert "=== Codebase Analysis ===" in result
+        assert "A Python web application." in result
+        assert result.rstrip().endswith("===")
+
+    def test_includes_components(self) -> None:
+        """Context string includes component details."""
+        from examples.script_utils import format_analysis_as_context
+        from shesha.models import AnalysisComponent, RepoAnalysis
+
+        comp = AnalysisComponent(
+            name="API Server",
+            path="api/",
+            description="REST API for user management",
+            apis=[{"type": "rest", "endpoints": ["/users", "/auth"]}],
+            models=["User", "Session"],
+            entry_points=["api/main.py"],
+            internal_dependencies=[],
+        )
+        analysis = RepoAnalysis(
+            version="1",
+            generated_at="2026-02-06T10:30:00Z",
+            head_sha="abc123",
+            overview="Test app",
+            components=[comp],
+            external_dependencies=[],
+        )
+
+        result = format_analysis_as_context(analysis)
+
+        assert "Components:" in result
+        assert "API Server (api/)" in result
+        assert "REST API for user management" in result
+        assert "APIs (rest): /users, /auth" in result
+        assert "Models: User, Session" in result
+
+    def test_includes_external_dependencies(self) -> None:
+        """Context string includes external dependencies."""
+        from examples.script_utils import format_analysis_as_context
+        from shesha.models import AnalysisExternalDep, RepoAnalysis
+
+        dep = AnalysisExternalDep(
+            name="PostgreSQL",
+            type="database",
+            description="Primary data store",
+            used_by=["API Server"],
+            optional=False,
+        )
+        analysis = RepoAnalysis(
+            version="1",
+            generated_at="2026-02-06T10:30:00Z",
+            head_sha="abc123",
+            overview="Test",
+            components=[],
+            external_dependencies=[dep],
+        )
+
+        result = format_analysis_as_context(analysis)
+
+        assert "External Dependencies:" in result
+        assert "PostgreSQL (database): Primary data store" in result
+
+    def test_empty_analysis_still_valid(self) -> None:
+        """Minimal analysis with no components or deps still produces valid output."""
+        from examples.script_utils import format_analysis_as_context
+        from shesha.models import RepoAnalysis
+
+        analysis = RepoAnalysis(
+            version="1",
+            generated_at="2026-02-06T10:30:00Z",
+            head_sha="abc123",
+            overview="Simple app",
+            components=[],
+            external_dependencies=[],
+        )
+
+        result = format_analysis_as_context(analysis)
+
+        assert "=== Codebase Analysis ===" in result
+        assert "Simple app" in result
+        # No Components or External Dependencies section
+        assert "Components:" not in result
+        assert "External Dependencies:" not in result
+
+
+class TestFormatAnalysisForDisplay:
+    """Tests for analysis display formatting."""
+
+    def test_format_analysis_includes_header(self) -> None:
+        """Formatted analysis includes header with date."""
+        from examples.script_utils import format_analysis_for_display
+        from shesha.models import RepoAnalysis
+
+        analysis = RepoAnalysis(
+            version="1",
+            generated_at="2026-02-06T10:30:00Z",
+            head_sha="abc123def456",
+            overview="A test application.",
+            components=[],
+            external_dependencies=[],
+        )
+
+        output = format_analysis_for_display(analysis)
+
+        assert "2026-02-06" in output
+        assert "abc123de" in output  # First 8 chars of SHA
+
+    def test_format_analysis_includes_overview(self) -> None:
+        """Formatted analysis includes overview section."""
+        from examples.script_utils import format_analysis_for_display
+        from shesha.models import RepoAnalysis
+
+        analysis = RepoAnalysis(
+            version="1",
+            generated_at="2026-02-06T10:30:00Z",
+            head_sha="abc123",
+            overview="This is a complex microservices application.",
+            components=[],
+            external_dependencies=[],
+        )
+
+        output = format_analysis_for_display(analysis)
+
+        assert "Overview" in output
+        assert "This is a complex microservices application." in output
+
+    def test_format_analysis_includes_components(self) -> None:
+        """Formatted analysis includes components."""
+        from examples.script_utils import format_analysis_for_display
+        from shesha.models import AnalysisComponent, RepoAnalysis
+
+        comp = AnalysisComponent(
+            name="API Server",
+            path="api/",
+            description="REST API for user management",
+            apis=[{"type": "rest", "endpoints": ["/users", "/auth"]}],
+            models=["User", "Session"],
+            entry_points=["api/main.py"],
+            internal_dependencies=[],
+        )
+        analysis = RepoAnalysis(
+            version="1",
+            generated_at="2026-02-06T10:30:00Z",
+            head_sha="abc123",
+            overview="Test",
+            components=[comp],
+            external_dependencies=[],
+        )
+
+        output = format_analysis_for_display(analysis)
+
+        assert "API Server" in output
+        assert "api/" in output
+        assert "REST API for user management" in output
+        assert "User" in output
+
+    def test_format_analysis_includes_caveats(self) -> None:
+        """Formatted analysis includes caveats warning."""
+        from examples.script_utils import format_analysis_for_display
+        from shesha.models import RepoAnalysis
+
+        analysis = RepoAnalysis(
+            version="1",
+            generated_at="2026-02-06T10:30:00Z",
+            head_sha="abc123",
+            overview="Test",
+            components=[],
+            external_dependencies=[],
+            caveats="This may be wrong.",
+        )
+
+        output = format_analysis_for_display(analysis)
+
+        assert "This may be wrong." in output
+
+    def test_format_analysis_includes_external_dependencies(self) -> None:
+        """Formatted analysis includes external dependencies."""
+        from examples.script_utils import format_analysis_for_display
+        from shesha.models import AnalysisExternalDep, RepoAnalysis
+
+        dep = AnalysisExternalDep(
+            name="PostgreSQL",
+            type="database",
+            description="Primary data store",
+            used_by=["API Server"],
+            optional=False,
+        )
+        dep_optional = AnalysisExternalDep(
+            name="Redis",
+            type="cache",
+            description="Session cache",
+            used_by=["API Server"],
+            optional=True,
+        )
+        analysis = RepoAnalysis(
+            version="1",
+            generated_at="2026-02-06T10:30:00Z",
+            head_sha="abc123",
+            overview="Test",
+            components=[],
+            external_dependencies=[dep, dep_optional],
+        )
+
+        output = format_analysis_for_display(analysis)
+
+        assert "External Dependencies" in output
+        assert "PostgreSQL" in output
+        assert "(optional)" in output
+        assert "Redis" in output

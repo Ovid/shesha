@@ -56,55 +56,49 @@ import time
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+# Allow importing script_utils whether running as a script or as a module.
+# When run directly (python examples/repo.py), Python adds examples/ to sys.path
+# automatically, so "from script_utils import" works. But when imported as a module
+# (from examples.repo import ...), examples/ isn't in sys.path. This ensures
+# script_utils is always findable, avoiding duplicate import lists for each mode.
+sys.path.insert(0, str(Path(__file__).parent))
+
+from script_utils import (
+    ThinkingSpinner,
+    format_analysis_as_context,
+    format_analysis_for_display,
+    format_history_prefix,
+    format_progress,
+    format_stats,
+    format_thought_time,
+    install_urllib3_cleanup_hook,
+    is_analysis_command,
+    is_exit_command,
+    is_help_command,
+    is_regenerate_command,
+    is_write_command,
+    parse_write_command,
+    should_warn_history_size,
+    write_session,
+)
+
 from shesha import Shesha, SheshaConfig
 from shesha.exceptions import RepoIngestError
 from shesha.rlm.trace import StepType
 
-# Storage path for repo projects
-STORAGE_PATH = Path.home() / ".shesha" / "repos"
+# Storage path for repo projects (not "repos" - that collides with RepoIngester's subdirectory)
+STORAGE_PATH = Path.home() / ".shesha" / "repo-explorer"
 
 INTERACTIVE_HELP = """\
 Shesha Repository Explorer - Ask questions about the indexed codebase.
 
 Commands:
   help, ?              Show this help message
+  analysis             Show codebase analysis
+  analyze              Generate/regenerate codebase analysis
   write                Save session transcript (auto-generated filename)
   write <filename>     Save session transcript to specified file
-  quit, exit           Leave the session
-
-Tip: Use --verbose flag for execution stats after each answer."""
-
-# Support both running as script and importing as module
-if __name__ == "__main__":
-    from script_utils import (
-        ThinkingSpinner,
-        format_history_prefix,
-        format_progress,
-        format_stats,
-        format_thought_time,
-        install_urllib3_cleanup_hook,
-        is_exit_command,
-        is_help_command,
-        is_write_command,
-        parse_write_command,
-        should_warn_history_size,
-        write_session,
-    )
-else:
-    from .script_utils import (
-        ThinkingSpinner,
-        format_history_prefix,
-        format_progress,
-        format_stats,
-        format_thought_time,
-        install_urllib3_cleanup_hook,
-        is_exit_command,
-        is_help_command,
-        is_write_command,
-        parse_write_command,
-        should_warn_history_size,
-        write_session,
-    )
+  quit, exit           Leave the session"""
 
 if TYPE_CHECKING:
     from shesha.models import RepoProjectResult
@@ -162,6 +156,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--verbose",
         action="store_true",
         help="Show execution stats after each answer",
+    )
+    parser.add_argument(
+        "--pristine",
+        action="store_true",
+        help="Skip using pre-computed analysis as query context",
     )
     return parser.parse_args(argv)
 
@@ -306,7 +305,51 @@ def handle_updates(result: RepoProjectResult, auto_update: bool) -> RepoProjectR
     return result
 
 
-def run_interactive_loop(project: Project, verbose: bool, project_name: str) -> None:
+def check_and_prompt_analysis(shesha: Shesha, project_id: str) -> None:
+    """Check analysis status and prompt user if needed.
+
+    Args:
+        shesha: Shesha instance.
+        project_id: Project to check.
+    """
+    try:
+        status = shesha.get_analysis_status(project_id)
+    except ValueError:
+        return  # Project may not exist yet; skip analysis check gracefully
+
+    if status == "missing":
+        print("Note: No codebase analysis exists for this repository.")
+        try:
+            response = input("Generate analysis? (y/n): ").strip().lower()
+            if response == "y":
+                print("Generating analysis (this may take a minute)...")
+                analysis = shesha.generate_analysis(project_id)
+                print("Analysis complete.\n")
+                print(format_analysis_for_display(analysis))
+                print()
+        except (EOFError, KeyboardInterrupt):
+            print()  # Clean line after interrupt
+    elif status == "stale":
+        print("Note: Codebase analysis is outdated (HEAD has moved).")
+        try:
+            response = input("Regenerate analysis? (y/n): ").strip().lower()
+            if response == "y":
+                print("Regenerating analysis...")
+                analysis = shesha.generate_analysis(project_id)
+                print("Analysis updated.\n")
+                print(format_analysis_for_display(analysis))
+                print()
+        except (EOFError, KeyboardInterrupt):
+            print()  # Clean line after interrupt
+
+
+def run_interactive_loop(
+    project: Project,
+    verbose: bool,
+    project_name: str,
+    shesha: Shesha,
+    analysis_context: str | None = None,
+) -> None:
     """Run the interactive question-answer loop for querying the codebase.
 
     Provides a REPL-style interface where users can ask questions about the
@@ -318,12 +361,18 @@ def run_interactive_loop(project: Project, verbose: bool, project_name: str) -> 
         verbose: If True, displays execution stats (time, tokens, trace)
             and progress updates during query processing.
         project_name: Name or URL of the project for session transcript metadata.
+        shesha: Shesha instance for analysis commands.
+        analysis_context: Pre-formatted analysis text to prepend to queries.
+            When set, each query includes this context so the LLM has structural
+            knowledge of the codebase. Pass None to skip (equivalent to --pristine).
 
     Note:
         The loop continues until the user types "quit", "exit", or presses
         Ctrl+C/Ctrl+D. Conversation history is maintained in memory and
         prepended to each query for context.
     """
+    if analysis_context:
+        print("Using codebase analysis as context. Use --pristine to disable.")
     print()
     print("Ask questions about the codebase.")
     print('Type "help" or "?" for commands.')
@@ -347,6 +396,25 @@ def run_interactive_loop(project: Project, verbose: bool, project_name: str) -> 
 
         if is_help_command(user_input):
             print(INTERACTIVE_HELP)
+            print()
+            continue
+
+        if is_analysis_command(user_input):
+            analysis = shesha.get_analysis(project.project_id)
+            if analysis is None:
+                print("No analysis exists. Use 'analyze' to generate one.")
+            else:
+                print(format_analysis_for_display(analysis))
+            print()
+            continue
+
+        if is_regenerate_command(user_input):
+            print("Generating analysis (this may take a minute)...")
+            try:
+                shesha.generate_analysis(project.project_id)
+                print("Analysis complete. Use 'analysis' to view.")
+            except Exception as e:
+                print(f"Error generating analysis: {e}")
             print()
             continue
 
@@ -387,7 +455,14 @@ def run_interactive_loop(project: Project, verbose: bool, project_name: str) -> 
                     spinner.start()
 
             prefix = format_history_prefix(history)
-            full_question = f"{prefix}{user_input}" if prefix else user_input
+            if analysis_context and prefix:
+                full_question = f"{analysis_context}\n\n{prefix}{user_input}"
+            elif analysis_context:
+                full_question = f"{analysis_context}\n\n{user_input}"
+            elif prefix:
+                full_question = f"{prefix}{user_input}"
+            else:
+                full_question = user_input
             result = project.query(full_question, on_progress=on_progress)
             spinner.stop()
 
@@ -506,8 +581,18 @@ def main() -> None:
 
         project = result.project
 
+    # Check analysis status
+    check_and_prompt_analysis(shesha, project.project_id)
+
+    # Load analysis context for query injection
+    analysis_context = None
+    if not args.pristine:
+        analysis = shesha.get_analysis(project.project_id)
+        if analysis:
+            analysis_context = format_analysis_as_context(analysis)
+
     # Enter interactive loop
-    run_interactive_loop(project, args.verbose, project.project_id)
+    run_interactive_loop(project, args.verbose, project.project_id, shesha, analysis_context)
 
 
 if __name__ == "__main__":

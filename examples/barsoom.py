@@ -65,41 +65,31 @@ import sys
 import time
 from pathlib import Path
 
+# Allow importing script_utils whether running as a script or as a module.
+# When run directly (python examples/barsoom.py), Python adds examples/ to sys.path
+# automatically, so "from script_utils import" works. But when imported as a module
+# (from examples.barsoom import ...), examples/ isn't in sys.path. This ensures
+# script_utils is always findable, avoiding duplicate import lists for each mode.
+sys.path.insert(0, str(Path(__file__).parent))
+
+from script_utils import (
+    ThinkingSpinner,
+    format_history_prefix,
+    format_progress,
+    format_stats,
+    format_thought_time,
+    install_urllib3_cleanup_hook,
+    is_exit_command,
+    is_help_command,
+    is_write_command,
+    parse_write_command,
+    should_warn_history_size,
+    write_session,
+)
+
 from shesha import Shesha
 from shesha.config import SheshaConfig
 from shesha.rlm.trace import StepType
-
-# Support both running as script and importing as module
-if __name__ == "__main__":
-    from script_utils import (
-        ThinkingSpinner,
-        format_history_prefix,
-        format_progress,
-        format_stats,
-        format_thought_time,
-        install_urllib3_cleanup_hook,
-        is_exit_command,
-        is_help_command,
-        is_write_command,
-        parse_write_command,
-        should_warn_history_size,
-        write_session,
-    )
-else:
-    from .script_utils import (
-        ThinkingSpinner,
-        format_history_prefix,
-        format_progress,
-        format_stats,
-        format_thought_time,
-        install_urllib3_cleanup_hook,
-        is_exit_command,
-        is_help_command,
-        is_write_command,
-        parse_write_command,
-        should_warn_history_size,
-        write_session,
-    )
 
 INTERACTIVE_HELP = """\
 Shesha Barsoom Explorer - Ask questions about the Barsoom novel series.

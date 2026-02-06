@@ -4,7 +4,13 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from shesha.models import ProjectInfo, QueryContext, RepoProjectResult
+from shesha.models import (
+    AnalysisComponent,
+    AnalysisExternalDep,
+    ProjectInfo,
+    QueryContext,
+    RepoProjectResult,
+)
 
 
 class TestProjectInfo:
@@ -142,3 +148,201 @@ class TestQueryContext:
         assert ctx.model == "claude-sonnet-4-20250514"
         assert ctx.system_prompt == "You are an assistant..."
         assert ctx.subcall_prompt == "Analyze this..."
+
+
+class TestAnalysisComponent:
+    """Tests for AnalysisComponent dataclass."""
+
+    def test_analysis_component_required_fields(self):
+        """AnalysisComponent stores required fields correctly."""
+        comp = AnalysisComponent(
+            name="Server API",
+            path="server/",
+            description="FastAPI service for chat",
+            apis=[{"type": "rest", "endpoints": ["/api/chat"]}],
+            models=["ChatSession", "Message"],
+            entry_points=["server/main.py"],
+            internal_dependencies=["ai_layer"],
+        )
+
+        assert comp.name == "Server API"
+        assert comp.path == "server/"
+        assert comp.description == "FastAPI service for chat"
+        assert comp.apis == [{"type": "rest", "endpoints": ["/api/chat"]}]
+        assert comp.models == ["ChatSession", "Message"]
+        assert comp.entry_points == ["server/main.py"]
+        assert comp.internal_dependencies == ["ai_layer"]
+
+    def test_analysis_component_optional_fields(self):
+        """AnalysisComponent has optional auth and data_persistence."""
+        comp = AnalysisComponent(
+            name="Web",
+            path="web/",
+            description="Frontend",
+            apis=[],
+            models=[],
+            entry_points=[],
+            internal_dependencies=[],
+            auth="Cognito JWT",
+            data_persistence="LocalStorage",
+        )
+
+        assert comp.auth == "Cognito JWT"
+        assert comp.data_persistence == "LocalStorage"
+
+    def test_analysis_component_defaults_none_for_optional(self):
+        """AnalysisComponent defaults optional fields to None."""
+        comp = AnalysisComponent(
+            name="Simple",
+            path="simple/",
+            description="Simple component",
+            apis=[],
+            models=[],
+            entry_points=[],
+            internal_dependencies=[],
+        )
+
+        assert comp.auth is None
+        assert comp.data_persistence is None
+
+
+class TestAnalysisExternalDep:
+    """Tests for AnalysisExternalDep dataclass."""
+
+    def test_external_dep_required_fields(self):
+        """AnalysisExternalDep stores required fields correctly."""
+        dep = AnalysisExternalDep(
+            name="Amazon Bedrock",
+            type="ai_service",
+            description="Claude model for agent invocations",
+            used_by=["ai_layer"],
+        )
+
+        assert dep.name == "Amazon Bedrock"
+        assert dep.type == "ai_service"
+        assert dep.description == "Claude model for agent invocations"
+        assert dep.used_by == ["ai_layer"]
+
+    def test_external_dep_optional_defaults_false(self):
+        """AnalysisExternalDep defaults optional to False."""
+        dep = AnalysisExternalDep(
+            name="PostgreSQL",
+            type="database",
+            description="Main database",
+            used_by=["server"],
+        )
+
+        assert dep.optional is False
+
+    def test_external_dep_optional_true(self):
+        """AnalysisExternalDep can set optional to True."""
+        dep = AnalysisExternalDep(
+            name="Atlassian API",
+            type="external_api",
+            description="Jira/Confluence integration",
+            used_by=["ai_layer"],
+            optional=True,
+        )
+
+        assert dep.optional is True
+
+
+class TestProjectInfoAnalysisStatus:
+    """Tests for ProjectInfo.analysis_status field."""
+
+    def test_project_info_with_analysis_status(self):
+        """ProjectInfo can include analysis_status."""
+        info = ProjectInfo(
+            project_id="my-project",
+            source_url="https://github.com/org/repo",
+            is_local=False,
+            source_exists=True,
+            analysis_status="current",
+        )
+
+        assert info.analysis_status == "current"
+
+    def test_project_info_analysis_status_defaults_none(self):
+        """ProjectInfo.analysis_status defaults to None."""
+        info = ProjectInfo(
+            project_id="my-project",
+            source_url=None,
+            is_local=False,
+            source_exists=True,
+        )
+
+        assert info.analysis_status is None
+
+
+class TestRepoAnalysis:
+    """Tests for RepoAnalysis dataclass."""
+
+    def test_repo_analysis_all_fields(self):
+        """RepoAnalysis stores all fields correctly."""
+        from shesha.models import AnalysisComponent, AnalysisExternalDep, RepoAnalysis
+
+        comp = AnalysisComponent(
+            name="API",
+            path="api/",
+            description="REST API",
+            apis=[],
+            models=[],
+            entry_points=[],
+            internal_dependencies=[],
+        )
+        dep = AnalysisExternalDep(
+            name="Redis",
+            type="database",
+            description="Cache",
+            used_by=["api"],
+        )
+
+        analysis = RepoAnalysis(
+            version="1",
+            generated_at="2026-02-06T10:30:00Z",
+            head_sha="abc123def456",
+            overview="A sample application.",
+            components=[comp],
+            external_dependencies=[dep],
+        )
+
+        assert analysis.version == "1"
+        assert analysis.generated_at == "2026-02-06T10:30:00Z"
+        assert analysis.head_sha == "abc123def456"
+        assert analysis.overview == "A sample application."
+        assert len(analysis.components) == 1
+        assert analysis.components[0].name == "API"
+        assert len(analysis.external_dependencies) == 1
+        assert analysis.external_dependencies[0].name == "Redis"
+
+    def test_repo_analysis_default_caveats(self):
+        """RepoAnalysis has default caveats message."""
+        from shesha.models import RepoAnalysis
+
+        analysis = RepoAnalysis(
+            version="1",
+            generated_at="2026-02-06T10:30:00Z",
+            head_sha="abc123",
+            overview="Test",
+            components=[],
+            external_dependencies=[],
+        )
+
+        assert "AI" in analysis.caveats
+        assert "incorrect" in analysis.caveats
+
+    def test_repo_analysis_custom_caveats(self):
+        """RepoAnalysis can have custom caveats."""
+        from shesha.models import RepoAnalysis
+
+        analysis = RepoAnalysis(
+            version="1",
+            generated_at="2026-02-06T10:30:00Z",
+            head_sha="abc123",
+            overview="Test",
+            components=[],
+            external_dependencies=[],
+            caveats="Custom warning.",
+        )
+
+        assert analysis.caveats == "Custom warning."

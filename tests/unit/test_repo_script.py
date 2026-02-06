@@ -45,6 +45,20 @@ class TestParseArgs:
         args = parse_args(["https://github.com/user/repo", "--verbose"])
         assert args.verbose
 
+    def test_pristine_flag_default_false(self) -> None:
+        """--pristine flag defaults to False."""
+        from examples.repo import parse_args
+
+        args = parse_args([])
+        assert not args.pristine
+
+    def test_pristine_flag(self) -> None:
+        """--pristine flag should be captured."""
+        from examples.repo import parse_args
+
+        args = parse_args(["https://github.com/user/repo", "--pristine"])
+        assert args.pristine
+
 
 class TestShowPicker:
     """Tests for show_picker function."""
@@ -308,9 +322,12 @@ class TestRunInteractiveLoop:
         from examples.repo import run_interactive_loop
 
         mock_project = MagicMock()
+        mock_shesha = MagicMock()
 
         with patch("builtins.input", return_value="quit"):
-            run_interactive_loop(mock_project, verbose=False, project_name="test-project")
+            run_interactive_loop(
+                mock_project, verbose=False, project_name="test-project", shesha=mock_shesha
+            )
 
         captured = capsys.readouterr()
         assert "Goodbye!" in captured.out
@@ -321,9 +338,12 @@ class TestRunInteractiveLoop:
         from examples.repo import run_interactive_loop
 
         mock_project = MagicMock()
+        mock_shesha = MagicMock()
 
         with patch("builtins.input", return_value="exit"):
-            run_interactive_loop(mock_project, verbose=False, project_name="test-project")
+            run_interactive_loop(
+                mock_project, verbose=False, project_name="test-project", shesha=mock_shesha
+            )
 
         captured = capsys.readouterr()
         assert "Goodbye!" in captured.out
@@ -333,10 +353,13 @@ class TestRunInteractiveLoop:
         from examples.repo import run_interactive_loop
 
         mock_project = MagicMock()
+        mock_shesha = MagicMock()
 
         # First empty, then quit
         with patch("builtins.input", side_effect=["", "quit"]):
-            run_interactive_loop(mock_project, verbose=False, project_name="test-project")
+            run_interactive_loop(
+                mock_project, verbose=False, project_name="test-project", shesha=mock_shesha
+            )
 
         mock_project.query.assert_not_called()
 
@@ -352,9 +375,12 @@ class TestRunInteractiveLoop:
 
         mock_project = MagicMock()
         mock_project.query.return_value = mock_result
+        mock_shesha = MagicMock()
 
         with patch("builtins.input", side_effect=["What is X?", "quit"]):
-            run_interactive_loop(mock_project, verbose=False, project_name="test-project")
+            run_interactive_loop(
+                mock_project, verbose=False, project_name="test-project", shesha=mock_shesha
+            )
 
         mock_project.query.assert_called_once()
 
@@ -363,9 +389,12 @@ class TestRunInteractiveLoop:
         from examples.repo import run_interactive_loop
 
         mock_project = MagicMock()
+        mock_shesha = MagicMock()
 
         with patch("builtins.input", side_effect=["help", "quit"]):
-            run_interactive_loop(mock_project, verbose=False, project_name="test-project")
+            run_interactive_loop(
+                mock_project, verbose=False, project_name="test-project", shesha=mock_shesha
+            )
 
         captured = capsys.readouterr()
         assert "Commands:" in captured.out
@@ -374,14 +403,140 @@ class TestRunInteractiveLoop:
         assert "quit, exit" in captured.out
         mock_project.query.assert_not_called()
 
+    def test_analysis_context_prepended_to_first_query(self) -> None:
+        """When analysis_context is set, it should be prepended to the query."""
+        from examples.repo import run_interactive_loop
+
+        mock_result = MagicMock()
+        mock_result.answer = "The answer"
+        mock_result.execution_time = 1.0
+        mock_result.token_usage = MagicMock(prompt_tokens=10, completion_tokens=5, total_tokens=15)
+        mock_result.trace = MagicMock(steps=[])
+
+        mock_project = MagicMock()
+        mock_project.query.return_value = mock_result
+        mock_shesha = MagicMock()
+
+        with patch("builtins.input", side_effect=["What is X?", "quit"]):
+            run_interactive_loop(
+                mock_project,
+                verbose=False,
+                project_name="test",
+                shesha=mock_shesha,
+                analysis_context="=== Codebase Analysis ===\nOverview\n===",
+            )
+
+        # The query should contain the analysis context followed by the question
+        call_args = mock_project.query.call_args
+        question = call_args[0][0]
+        assert question.startswith("=== Codebase Analysis ===")
+        assert "What is X?" in question
+
+    def test_analysis_context_prepended_to_followup_with_history(self) -> None:
+        """Analysis context should be prepended even with conversation history."""
+        from examples.repo import run_interactive_loop
+
+        mock_result = MagicMock()
+        mock_result.answer = "Answer"
+        mock_result.execution_time = 1.0
+        mock_result.token_usage = MagicMock(prompt_tokens=10, completion_tokens=5, total_tokens=15)
+        mock_result.trace = MagicMock(steps=[])
+
+        mock_project = MagicMock()
+        mock_project.query.return_value = mock_result
+        mock_shesha = MagicMock()
+
+        with patch("builtins.input", side_effect=["Q1?", "Q2?", "quit"]):
+            run_interactive_loop(
+                mock_project,
+                verbose=False,
+                project_name="test",
+                shesha=mock_shesha,
+                analysis_context="=== Analysis ===\nInfo\n===",
+            )
+
+        # Second query should have analysis + history + question
+        second_call = mock_project.query.call_args_list[1]
+        question = second_call[0][0]
+        assert question.startswith("=== Analysis ===")
+        assert "Previous conversation:" in question
+        assert "Q2?" in question
+
+    def test_no_analysis_context_no_prefix(self) -> None:
+        """When analysis_context is None, query should not have analysis prefix."""
+        from examples.repo import run_interactive_loop
+
+        mock_result = MagicMock()
+        mock_result.answer = "Answer"
+        mock_result.execution_time = 1.0
+        mock_result.token_usage = MagicMock(prompt_tokens=10, completion_tokens=5, total_tokens=15)
+        mock_result.trace = MagicMock(steps=[])
+
+        mock_project = MagicMock()
+        mock_project.query.return_value = mock_result
+        mock_shesha = MagicMock()
+
+        with patch("builtins.input", side_effect=["What is X?", "quit"]):
+            run_interactive_loop(
+                mock_project,
+                verbose=False,
+                project_name="test",
+                shesha=mock_shesha,
+            )
+
+        call_args = mock_project.query.call_args
+        question = call_args[0][0]
+        assert question == "What is X?"
+
+    def test_analysis_context_prints_note(self, capsys: pytest.CaptureFixture[str]) -> None:
+        """When analysis_context is set, should print a note on entry."""
+        from examples.repo import run_interactive_loop
+
+        mock_project = MagicMock()
+        mock_shesha = MagicMock()
+
+        with patch("builtins.input", return_value="quit"):
+            run_interactive_loop(
+                mock_project,
+                verbose=False,
+                project_name="test",
+                shesha=mock_shesha,
+                analysis_context="=== Analysis ===\nInfo\n===",
+            )
+
+        captured = capsys.readouterr()
+        assert "Using codebase analysis as context" in captured.out
+        assert "--pristine" in captured.out
+
+    def test_no_analysis_context_no_note(self, capsys: pytest.CaptureFixture[str]) -> None:
+        """When analysis_context is None, should NOT print the note."""
+        from examples.repo import run_interactive_loop
+
+        mock_project = MagicMock()
+        mock_shesha = MagicMock()
+
+        with patch("builtins.input", return_value="quit"):
+            run_interactive_loop(
+                mock_project,
+                verbose=False,
+                project_name="test",
+                shesha=mock_shesha,
+            )
+
+        captured = capsys.readouterr()
+        assert "Using codebase analysis" not in captured.out
+
     def test_question_mark_shows_help_text(self, capsys: pytest.CaptureFixture[str]) -> None:
         """Typing '?' should show help text without querying."""
         from examples.repo import run_interactive_loop
 
         mock_project = MagicMock()
+        mock_shesha = MagicMock()
 
         with patch("builtins.input", side_effect=["?", "quit"]):
-            run_interactive_loop(mock_project, verbose=False, project_name="test-project")
+            run_interactive_loop(
+                mock_project, verbose=False, project_name="test-project", shesha=mock_shesha
+            )
 
         captured = capsys.readouterr()
         assert "Commands:" in captured.out
@@ -449,6 +604,7 @@ class TestMain:
         mock_shesha = MagicMock()
         mock_shesha.list_projects.return_value = ["existing-project"]
         mock_shesha.check_repo_for_updates.return_value = mock_result
+        mock_shesha.get_analysis.return_value = None
 
         with patch.object(sys, "argv", ["repo.py"]):
             with patch.dict(os.environ, {"SHESHA_API_KEY": "test-key"}, clear=True):
@@ -486,6 +642,7 @@ class TestMain:
         mock_shesha = MagicMock()
         mock_shesha.list_projects.return_value = ["existing-project"]
         mock_shesha.check_repo_for_updates.return_value = mock_result
+        mock_shesha.get_analysis.return_value = None
 
         with patch.object(sys, "argv", ["repo.py", "--update"]):
             with patch.dict(os.environ, {"SHESHA_API_KEY": "test-key"}, clear=True):
@@ -514,6 +671,7 @@ class TestMain:
         mock_shesha = MagicMock()
         mock_shesha.list_projects.return_value = ["existing-project"]
         mock_shesha.create_project_from_repo.return_value = mock_result
+        mock_shesha.get_analysis.return_value = None
 
         with patch.object(sys, "argv", ["repo.py"]):
             with patch.dict(os.environ, {"SHESHA_API_KEY": "test-key"}, clear=True):

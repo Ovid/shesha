@@ -9,6 +9,14 @@ from shesha import Shesha
 from shesha.models import RepoProjectResult
 
 
+@pytest.fixture
+def shesha_instance(tmp_path: Path) -> Shesha:
+    """Create a Shesha instance with mocked Docker for testing."""
+    with patch("shesha.shesha.docker"), patch("shesha.shesha.ContainerPool"):
+        shesha = Shesha(model="test-model", storage_path=tmp_path)
+        return shesha
+
+
 class TestDockerAvailability:
     """Tests for Docker availability check at startup."""
 
@@ -518,3 +526,298 @@ class TestGetProjectInfo:
                 shesha.get_project_info("nonexistent")
 
             assert "does not exist" in str(exc_info.value)
+
+
+class TestExtractRepoName:
+    """Tests for _extract_repo_name method."""
+
+    def _make_shesha(self, tmp_path: Path, is_local: bool = False) -> Shesha:
+        """Create a Shesha instance with mocked Docker and RepoIngester."""
+        with patch("shesha.shesha.docker"), patch("shesha.shesha.ContainerPool"):
+            with patch("shesha.shesha.RepoIngester") as mock_ingester_cls:
+                mock_ingester = MagicMock()
+                mock_ingester_cls.return_value = mock_ingester
+                mock_ingester.is_local_path.return_value = is_local
+                shesha = Shesha(model="test-model", storage_path=tmp_path)
+        return shesha
+
+    def test_https_url(self, tmp_path: Path):
+        """Standard HTTPS GitHub URL extracts org-repo name."""
+        shesha = self._make_shesha(tmp_path)
+        assert shesha._extract_repo_name("https://github.com/Ovid/shesha") == "Ovid-shesha"
+
+    def test_https_url_trailing_slash(self, tmp_path: Path):
+        """HTTPS URL with trailing slash extracts org-repo name."""
+        shesha = self._make_shesha(tmp_path)
+        assert shesha._extract_repo_name("https://github.com/Ovid/shesha/") == "Ovid-shesha"
+
+    def test_https_url_dot_git(self, tmp_path: Path):
+        """HTTPS URL with .git suffix extracts org-repo name."""
+        shesha = self._make_shesha(tmp_path)
+        assert shesha._extract_repo_name("https://github.com/Ovid/shesha.git") == "Ovid-shesha"
+
+    def test_https_url_dot_git_trailing_slash(self, tmp_path: Path):
+        """HTTPS URL with .git and trailing slash extracts org-repo name."""
+        shesha = self._make_shesha(tmp_path)
+        assert shesha._extract_repo_name("https://github.com/Ovid/shesha.git/") == "Ovid-shesha"
+
+    def test_ssh_url(self, tmp_path: Path):
+        """SSH git URL extracts org-repo name."""
+        shesha = self._make_shesha(tmp_path)
+        assert shesha._extract_repo_name("git@github.com:Ovid/shesha.git") == "Ovid-shesha"
+
+    def test_gitlab_url(self, tmp_path: Path):
+        """GitLab URL extracts org-repo name."""
+        shesha = self._make_shesha(tmp_path)
+        assert shesha._extract_repo_name("https://gitlab.com/myorg/myrepo") == "myorg-myrepo"
+
+    def test_local_path_uses_parent_and_name(self, tmp_path: Path):
+        """Local path extracts parent-name to avoid collisions."""
+        shesha = self._make_shesha(tmp_path, is_local=True)
+        assert shesha._extract_repo_name("/home/user/projects/shesha") == "projects-shesha"
+
+    def test_local_home_relative_path(self, tmp_path: Path):
+        """Home-relative local path extracts parent-name."""
+        shesha = self._make_shesha(tmp_path, is_local=True)
+        assert shesha._extract_repo_name("~/projects/myrepo") == "projects-myrepo"
+
+    def test_local_path_trailing_slash(self, tmp_path: Path):
+        """Local path with trailing slash extracts parent-name."""
+        shesha = self._make_shesha(tmp_path, is_local=True)
+        assert shesha._extract_repo_name("/home/user/projects/shesha/") == "projects-shesha"
+
+    def test_local_relative_path_no_leading_dash(self, tmp_path: Path):
+        """Relative local path without parent resolves to avoid leading dash."""
+        shesha = self._make_shesha(tmp_path, is_local=True)
+        result = shesha._extract_repo_name("myrepo")
+        assert not result.startswith("-"), f"Name should not start with dash: {result}"
+        assert result.endswith("myrepo")
+
+    def test_local_dot_relative_path(self, tmp_path: Path):
+        """Dot-relative local path resolves to meaningful parent-name."""
+        shesha = self._make_shesha(tmp_path, is_local=True)
+        result = shesha._extract_repo_name("./myrepo")
+        assert not result.startswith("-"), f"Name should not start with dash: {result}"
+        assert not result.startswith("."), f"Name should not start with dot: {result}"
+        assert result.endswith("myrepo")
+
+    def test_fallback_for_unparseable_url(self, tmp_path: Path):
+        """Unparseable URL falls back to unnamed-repo."""
+        shesha = self._make_shesha(tmp_path)
+        assert shesha._extract_repo_name("not-a-url") == "unnamed-repo"
+
+
+class TestGetProjectInfoWithAnalysis:
+    """Tests for get_project_info including analysis_status."""
+
+    def test_get_project_info_includes_analysis_status(self, shesha_instance):
+        """get_project_info includes analysis_status field."""
+        shesha_instance.create_project("info-with-status")
+
+        info = shesha_instance.get_project_info("info-with-status")
+
+        assert info.analysis_status == "missing"  # No analysis yet
+
+    def test_get_project_info_analysis_status_current(self, shesha_instance):
+        """get_project_info shows 'current' when analysis matches SHA."""
+        from shesha.models import RepoAnalysis
+
+        shesha_instance.create_project("info-current")
+        shesha_instance._repo_ingester.save_sha("info-current", "sha123")
+        shesha_instance._repo_ingester.save_source_url("info-current", "/fake")
+
+        analysis = RepoAnalysis(
+            version="1",
+            generated_at="2026-02-06T10:30:00Z",
+            head_sha="sha123",
+            overview="Test",
+            components=[],
+            external_dependencies=[],
+        )
+        shesha_instance._storage.store_analysis("info-current", analysis)
+
+        info = shesha_instance.get_project_info("info-current")
+
+        assert info.analysis_status == "current"
+
+    def test_get_project_info_analysis_status_stale(self, shesha_instance):
+        """get_project_info shows 'stale' when analysis SHA differs from current."""
+        from shesha.models import RepoAnalysis
+
+        shesha_instance.create_project("info-stale")
+        shesha_instance._repo_ingester.save_sha("info-stale", "new_sha")
+        shesha_instance._repo_ingester.save_source_url("info-stale", "/fake")
+
+        analysis = RepoAnalysis(
+            version="1",
+            generated_at="2026-02-06T10:30:00Z",
+            head_sha="old_sha",  # Different from saved SHA
+            overview="Test",
+            components=[],
+            external_dependencies=[],
+        )
+        shesha_instance._storage.store_analysis("info-stale", analysis)
+
+        info = shesha_instance.get_project_info("info-stale")
+
+        assert info.analysis_status == "stale"
+
+
+class TestAnalysisStatus:
+    """Tests for analysis status checking."""
+
+    def test_get_analysis_status_missing(self, shesha_instance: Shesha, tmp_path: Path):
+        """get_analysis_status returns 'missing' when no analysis exists."""
+        shesha_instance.create_project("no-analysis-project")
+        status = shesha_instance.get_analysis_status("no-analysis-project")
+        assert status == "missing"
+
+    def test_get_analysis_status_current(self, shesha_instance: Shesha, tmp_path: Path):
+        """get_analysis_status returns 'current' when analysis matches HEAD."""
+        from shesha.models import RepoAnalysis
+
+        shesha_instance.create_project("current-analysis")
+        analysis = RepoAnalysis(
+            version="1",
+            generated_at="2026-02-06T10:30:00Z",
+            head_sha="abc123",
+            overview="Test",
+            components=[],
+            external_dependencies=[],
+        )
+        shesha_instance._storage.store_analysis("current-analysis", analysis)
+        shesha_instance._repo_ingester.save_sha("current-analysis", "abc123")
+        shesha_instance._repo_ingester.save_source_url("current-analysis", "/fake/path")
+
+        status = shesha_instance.get_analysis_status("current-analysis")
+        assert status == "current"
+
+    def test_get_analysis_status_stale(self, shesha_instance: Shesha, tmp_path: Path):
+        """get_analysis_status returns 'stale' when analysis SHA differs from HEAD."""
+        from shesha.models import RepoAnalysis
+
+        shesha_instance.create_project("stale-analysis")
+        analysis = RepoAnalysis(
+            version="1",
+            generated_at="2026-02-06T10:30:00Z",
+            head_sha="old_sha_123",
+            overview="Test",
+            components=[],
+            external_dependencies=[],
+        )
+        shesha_instance._storage.store_analysis("stale-analysis", analysis)
+        shesha_instance._repo_ingester.save_sha("stale-analysis", "new_sha_456")
+        shesha_instance._repo_ingester.save_source_url("stale-analysis", "/fake/path")
+
+        status = shesha_instance.get_analysis_status("stale-analysis")
+        assert status == "stale"
+
+    def test_get_analysis_status_nonexistent_project_raises(self, shesha_instance: Shesha):
+        """get_analysis_status raises for nonexistent project."""
+        with pytest.raises(ValueError, match="does not exist"):
+            shesha_instance.get_analysis_status("no-such-project")
+
+
+class TestGetAnalysis:
+    """Tests for get_analysis method."""
+
+    def test_get_analysis_returns_stored_analysis(self, shesha_instance: Shesha):
+        """get_analysis returns the stored analysis."""
+        from shesha.models import AnalysisComponent, RepoAnalysis
+
+        shesha_instance.create_project("get-analysis-project")
+        comp = AnalysisComponent(
+            name="API",
+            path="api/",
+            description="REST API",
+            apis=[],
+            models=["User"],
+            entry_points=["main.py"],
+            internal_dependencies=[],
+        )
+        analysis = RepoAnalysis(
+            version="1",
+            generated_at="2026-02-06T10:30:00Z",
+            head_sha="abc123",
+            overview="Test app",
+            components=[comp],
+            external_dependencies=[],
+        )
+        shesha_instance._storage.store_analysis("get-analysis-project", analysis)
+
+        result = shesha_instance.get_analysis("get-analysis-project")
+        assert result is not None
+        assert result.overview == "Test app"
+        assert len(result.components) == 1
+
+    def test_get_analysis_returns_none_when_missing(self, shesha_instance: Shesha):
+        """get_analysis returns None when no analysis exists."""
+        shesha_instance.create_project("no-analysis")
+        result = shesha_instance.get_analysis("no-analysis")
+        assert result is None
+
+    def test_get_analysis_nonexistent_project_raises(self, shesha_instance: Shesha):
+        """get_analysis raises for nonexistent project."""
+        with pytest.raises(ValueError, match="does not exist"):
+            shesha_instance.get_analysis("no-such-project")
+
+
+class TestGenerateAnalysis:
+    """Tests for generate_analysis method."""
+
+    def test_generate_analysis_stores_result(self, shesha_instance):
+        """generate_analysis stores the generated analysis."""
+        from shesha.models import RepoAnalysis
+
+        # Create a project
+        shesha_instance.create_project("gen-analysis")
+        shesha_instance._repo_ingester.save_sha("gen-analysis", "sha123")
+
+        # Mock the generator
+        mock_analysis = RepoAnalysis(
+            version="1",
+            generated_at="2026-02-06T10:30:00Z",
+            head_sha="sha123",
+            overview="Generated analysis",
+            components=[],
+            external_dependencies=[],
+        )
+
+        with patch("shesha.shesha.AnalysisGenerator") as mock_generator:
+            mock_generator.return_value.generate.return_value = mock_analysis
+
+            result = shesha_instance.generate_analysis("gen-analysis")
+
+            assert result.overview == "Generated analysis"
+            # Verify it was stored
+            stored = shesha_instance._storage.load_analysis("gen-analysis")
+            assert stored is not None
+            assert stored.overview == "Generated analysis"
+
+    def test_generate_analysis_returns_analysis(self, shesha_instance):
+        """generate_analysis returns the generated RepoAnalysis."""
+        from shesha.models import RepoAnalysis
+
+        shesha_instance.create_project("return-analysis")
+
+        mock_analysis = RepoAnalysis(
+            version="1",
+            generated_at="2026-02-06T10:30:00Z",
+            head_sha="abc",
+            overview="Test",
+            components=[],
+            external_dependencies=[],
+        )
+
+        with patch("shesha.shesha.AnalysisGenerator") as mock_generator:
+            mock_generator.return_value.generate.return_value = mock_analysis
+
+            result = shesha_instance.generate_analysis("return-analysis")
+
+            assert isinstance(result, RepoAnalysis)
+            assert result.overview == "Test"
+
+    def test_generate_analysis_nonexistent_project_raises(self, shesha_instance):
+        """generate_analysis raises for nonexistent project."""
+        with pytest.raises(ValueError, match="does not exist"):
+            shesha_instance.generate_analysis("no-such-project")
