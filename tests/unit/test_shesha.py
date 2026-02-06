@@ -586,6 +586,21 @@ class TestExtractRepoName:
         shesha = self._make_shesha(tmp_path, is_local=True)
         assert shesha._extract_repo_name("/home/user/projects/shesha/") == "projects-shesha"
 
+    def test_local_relative_path_no_leading_dash(self, tmp_path: Path):
+        """Relative local path without parent resolves to avoid leading dash."""
+        shesha = self._make_shesha(tmp_path, is_local=True)
+        result = shesha._extract_repo_name("myrepo")
+        assert not result.startswith("-"), f"Name should not start with dash: {result}"
+        assert result.endswith("myrepo")
+
+    def test_local_dot_relative_path(self, tmp_path: Path):
+        """Dot-relative local path resolves to meaningful parent-name."""
+        shesha = self._make_shesha(tmp_path, is_local=True)
+        result = shesha._extract_repo_name("./myrepo")
+        assert not result.startswith("-"), f"Name should not start with dash: {result}"
+        assert not result.startswith("."), f"Name should not start with dot: {result}"
+        assert result.endswith("myrepo")
+
     def test_fallback_for_unparseable_url(self, tmp_path: Path):
         """Unparseable URL falls back to unnamed-repo."""
         shesha = self._make_shesha(tmp_path)

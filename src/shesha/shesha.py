@@ -358,7 +358,7 @@ class Shesha:
         """Extract repository name from URL."""
         cleaned = url.rstrip("/")
         if self._repo_ingester.is_local_path(url):
-            path = Path(cleaned).expanduser()
+            path = Path(cleaned).expanduser().resolve()
             return f"{path.parent.name}-{path.name}"
         match = re.search(r"[/:]([^/]+/[^/]+?)(?:\.git)?$", cleaned)
         if match:
