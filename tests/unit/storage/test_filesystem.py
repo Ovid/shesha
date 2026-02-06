@@ -295,9 +295,7 @@ class TestAnalysisOperations:
         assert len(loaded.external_dependencies) == 1
         assert loaded.external_dependencies[0].optional is True
 
-    def test_load_analysis_without_caveats_uses_default(
-        self, storage: FilesystemStorage
-    ) -> None:
+    def test_load_analysis_without_caveats_uses_default(self, storage: FilesystemStorage) -> None:
         """Loading analysis without caveats key uses dataclass default, not empty string."""
         storage.create_project("no-caveats")
         project_path = storage._project_path("no-caveats")

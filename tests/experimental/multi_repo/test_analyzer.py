@@ -1027,7 +1027,6 @@ class TestMultiRepoAnalyzerRevisionLoop:
         # Final alignment still recommends revise (max rounds hit)
         assert alignment.recommendation == "revise"
 
-
     def test_major_gaps_triggers_alignment_callback(self):
         """Alignment callback fires for 'major_gaps', not just 'revise'."""
         mock_shesha = MagicMock()
