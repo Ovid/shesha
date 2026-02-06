@@ -65,13 +65,16 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from script_utils import (
     ThinkingSpinner,
+    format_analysis_for_display,
     format_history_prefix,
     format_progress,
     format_stats,
     format_thought_time,
     install_urllib3_cleanup_hook,
+    is_analysis_command,
     is_exit_command,
     is_help_command,
+    is_regenerate_command,
     is_write_command,
     parse_write_command,
     should_warn_history_size,
@@ -90,11 +93,11 @@ Shesha Repository Explorer - Ask questions about the indexed codebase.
 
 Commands:
   help, ?              Show this help message
+  analysis             Show codebase analysis
+  analyze              Generate/regenerate codebase analysis
   write                Save session transcript (auto-generated filename)
   write <filename>     Save session transcript to specified file
-  quit, exit           Leave the session
-
-Tip: Use --verbose flag for execution stats after each answer."""
+  quit, exit           Leave the session"""
 
 if TYPE_CHECKING:
     from shesha.models import RepoProjectResult
@@ -296,7 +299,43 @@ def handle_updates(result: RepoProjectResult, auto_update: bool) -> RepoProjectR
     return result
 
 
-def run_interactive_loop(project: Project, verbose: bool, project_name: str) -> None:
+def check_and_prompt_analysis(shesha: Shesha, project_id: str) -> None:
+    """Check analysis status and prompt user if needed.
+
+    Args:
+        shesha: Shesha instance.
+        project_id: Project to check.
+    """
+    try:
+        status = shesha.get_analysis_status(project_id)
+    except ValueError:
+        return  # Project doesn't exist or other error
+
+    if status == "missing":
+        print("Note: No codebase analysis exists for this repository.")
+        try:
+            response = input("Generate analysis? (y/n): ").strip().lower()
+            if response == "y":
+                print("Generating analysis (this may take a minute)...")
+                shesha.generate_analysis(project_id)
+                print("Analysis complete.")
+        except (EOFError, KeyboardInterrupt):
+            print()  # Clean line after interrupt
+    elif status == "stale":
+        print("Note: Codebase analysis is outdated (HEAD has moved).")
+        try:
+            response = input("Regenerate analysis? (y/n): ").strip().lower()
+            if response == "y":
+                print("Regenerating analysis...")
+                shesha.generate_analysis(project_id)
+                print("Analysis updated.")
+        except (EOFError, KeyboardInterrupt):
+            print()
+
+
+def run_interactive_loop(
+    project: Project, verbose: bool, project_name: str, shesha: Shesha
+) -> None:
     """Run the interactive question-answer loop for querying the codebase.
 
     Provides a REPL-style interface where users can ask questions about the
@@ -308,6 +347,7 @@ def run_interactive_loop(project: Project, verbose: bool, project_name: str) -> 
         verbose: If True, displays execution stats (time, tokens, trace)
             and progress updates during query processing.
         project_name: Name or URL of the project for session transcript metadata.
+        shesha: Shesha instance for analysis commands.
 
     Note:
         The loop continues until the user types "quit", "exit", or presses
@@ -337,6 +377,25 @@ def run_interactive_loop(project: Project, verbose: bool, project_name: str) -> 
 
         if is_help_command(user_input):
             print(INTERACTIVE_HELP)
+            print()
+            continue
+
+        if is_analysis_command(user_input):
+            analysis = shesha.get_analysis(project.project_id)
+            if analysis is None:
+                print("No analysis exists. Use 'analyze' to generate one.")
+            else:
+                print(format_analysis_for_display(analysis))
+            print()
+            continue
+
+        if is_regenerate_command(user_input):
+            print("Generating analysis (this may take a minute)...")
+            try:
+                shesha.generate_analysis(project.project_id)
+                print("Analysis complete. Use 'analysis' to view.")
+            except Exception as e:
+                print(f"Error generating analysis: {e}")
             print()
             continue
 
@@ -496,8 +555,11 @@ def main() -> None:
 
         project = result.project
 
+    # Check analysis status
+    check_and_prompt_analysis(shesha, project.project_id)
+
     # Enter interactive loop
-    run_interactive_loop(project, args.verbose, project.project_id)
+    run_interactive_loop(project, args.verbose, project.project_id, shesha)
 
 
 if __name__ == "__main__":
