@@ -46,6 +46,48 @@ def test_query_result_dataclass():
     assert result.execution_time == 1.5
 
 
+def test_query_result_verification_defaults_none():
+    """QueryResult.verification defaults to None."""
+    result = QueryResult(
+        answer="ans",
+        trace=Trace(),
+        token_usage=TokenUsage(),
+        execution_time=0.0,
+    )
+    assert result.verification is None
+
+
+def test_query_result_accepts_verification():
+    """QueryResult accepts optional verification param."""
+    from shesha.rlm.verification import Citation, VerificationResult
+
+    vr = VerificationResult(
+        citations=[Citation(doc_id=0, found=True)],
+        quotes=[],
+    )
+    result = QueryResult(
+        answer="ans",
+        trace=Trace(),
+        token_usage=TokenUsage(),
+        execution_time=0.0,
+        verification=vr,
+    )
+    assert result.verification is vr
+    assert result.verification.all_valid is True
+
+
+def test_engine_verify_citations_defaults_true():
+    """RLMEngine.verify_citations defaults to True."""
+    engine = RLMEngine(model="test-model")
+    assert engine.verify_citations is True
+
+
+def test_engine_verify_citations_can_be_disabled():
+    """RLMEngine accepts verify_citations=False."""
+    engine = RLMEngine(model="test-model", verify_citations=False)
+    assert engine.verify_citations is False
+
+
 class TestRLMEngine:
     """Tests for RLMEngine."""
 

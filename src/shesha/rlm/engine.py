@@ -4,7 +4,7 @@ import re
 import time
 import uuid
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from shesha.llm.client import LLMClient
@@ -12,6 +12,7 @@ from shesha.models import QueryContext
 from shesha.prompts import PromptLoader
 from shesha.rlm.prompts import MAX_SUBCALL_CHARS, wrap_repl_output, wrap_subcall_content
 from shesha.rlm.trace import StepType, TokenUsage, Trace, TraceStep
+from shesha.rlm.verification import VerificationResult
 from shesha.rlm.trace_writer import IncrementalTraceWriter, TraceWriter
 from shesha.sandbox.executor import ContainerExecutor, SubcallContentError
 from shesha.sandbox.pool import ContainerPool
@@ -29,6 +30,7 @@ class QueryResult:
     trace: Trace
     token_usage: TokenUsage
     execution_time: float
+    verification: VerificationResult | None = field(default=None)
 
 
 def extract_code_blocks(text: str) -> list[str]:
@@ -52,6 +54,7 @@ class RLMEngine:
         prompts_dir: Path | None = None,
         pool: ContainerPool | None = None,
         max_traces_per_project: int = 50,
+        verify_citations: bool = True,
     ) -> None:
         """Initialize the RLM engine."""
         self.model = model
@@ -63,6 +66,7 @@ class RLMEngine:
         self.prompt_loader = PromptLoader(prompts_dir)
         self._pool = pool
         self.max_traces_per_project = max_traces_per_project
+        self.verify_citations = verify_citations
 
     def _handle_llm_query(
         self,
