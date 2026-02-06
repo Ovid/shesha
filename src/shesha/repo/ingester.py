@@ -4,7 +4,9 @@ import json
 import os
 import re
 import shutil
+import stat
 import subprocess
+import tempfile
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -94,12 +96,19 @@ class RepoIngester:
         repo_path = self._repo_path(project_id)
         repo_path.mkdir(parents=True, exist_ok=True)
 
-        cmd = ["git"]
-        if token:
-            cmd += ["-c", f"http.extraHeader=Authorization: Bearer {token}"]
-        cmd += ["clone", "--depth=1", url, str(repo_path)]
+        cmd = ["git", "clone", "--depth=1", url, str(repo_path)]
+        env = None
 
-        result = subprocess.run(cmd, capture_output=True, text=True)
+        if token:
+            env, askpass_path = self._create_askpass(token)
+        else:
+            askpass_path = None
+
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, env=env)
+        finally:
+            if askpass_path is not None:
+                askpass_path.unlink(missing_ok=True)
 
         if result.returncode != 0:
             if repo_path.exists():
@@ -109,6 +118,27 @@ class RepoIngester:
             raise RepoIngestError(url, RuntimeError(result.stderr))
 
         return repo_path
+
+    @staticmethod
+    def _create_askpass(token: str) -> tuple[dict[str, str], Path]:
+        """Create a GIT_ASKPASS script that supplies the token via stdout.
+
+        Returns env dict and path to the temp script (caller must clean up).
+        """
+        fd, path = tempfile.mkstemp(suffix="_git_askpass.sh")
+        try:
+            with os.fdopen(fd, "w") as f:
+                f.write("#!/bin/sh\necho \"$GIT_TOKEN\"\n")
+            os.chmod(path, stat.S_IRWXU)
+        except Exception:
+            Path(path).unlink(missing_ok=True)
+            raise
+
+        env = os.environ.copy()
+        env["GIT_ASKPASS"] = path
+        env["GIT_TOKEN"] = token
+        env["GIT_TERMINAL_PROMPT"] = "0"
+        return env, Path(path)
 
     def save_sha(self, project_id: str, sha: str) -> None:
         """Save the HEAD SHA for a project."""

@@ -651,6 +651,4 @@ class TestEngineMaxTracesConfig:
                 project_id="test-project",
             )
 
-            mock_writer.cleanup_old_traces.assert_called_once_with(
-                "test-project", max_count=25
-            )
+            mock_writer.cleanup_old_traces.assert_called_once_with("test-project", max_count=25)

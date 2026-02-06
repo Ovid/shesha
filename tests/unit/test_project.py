@@ -161,4 +161,3 @@ class TestProject:
         call_kwargs = mock_engine.query.call_args.kwargs
         assert call_kwargs.get("storage") is mock_storage
         assert call_kwargs.get("project_id") == "test-project"
-

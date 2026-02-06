@@ -31,7 +31,7 @@
   - Remaining: per-process execution and OS-level timeout enforcement are not yet addressed.
 
 - **~~Repo token handling injects secrets into clone URL (leak risk)~~** — RESOLVED
-  - Replaced `_inject_token()` URL embedding with `git -c http.extraHeader=Authorization: Bearer ...`. Token no longer appears in clone URL, process list, or `.git/config`.
+  - Replaced `_inject_token()` URL embedding with `GIT_ASKPASS` mechanism. A temporary script echoes the token from `GIT_TOKEN` env var, so it never appears in command-line arguments (invisible to `ps`/`/proc`), clone URL, or `.git/config`.
 
 - **~~Local path detection is too permissive and can misclassify~~** — RESOLVED
   - Removed `Path(url).exists()` fallback. Now uses prefix-only matching (`/`, `~`, `./`, `../`) to prevent bare names matching existing CWD entries.

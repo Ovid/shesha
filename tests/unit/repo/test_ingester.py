@@ -161,8 +161,8 @@ class TestGitClone:
             call_args = mock_run.call_args[0][0]
             assert "--depth=1" in call_args
 
-    def test_clone_uses_extra_header_for_token(self, ingester: RepoIngester):
-        """clone() passes token via -c http.extraHeader, NOT in URL."""
+    def test_clone_uses_askpass_for_token(self, ingester: RepoIngester):
+        """clone() passes token via GIT_ASKPASS, not in command-line args."""
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=0, stderr="")
 
@@ -173,16 +173,35 @@ class TestGitClone:
             )
 
             call_args = mock_run.call_args[0][0]
+            call_kwargs = mock_run.call_args[1] if mock_run.call_args[1] else {}
+            # Token must NOT appear in command-line args
+            cmd_str = " ".join(call_args)
+            assert "my_token" not in cmd_str
             # Token must NOT appear in URL
             url_in_cmd = [a for a in call_args if "github.com" in a][0]
             assert "my_token" not in url_in_cmd
-            # Token must appear in http.extraHeader
-            assert "-c" in call_args
-            header_idx = call_args.index("-c") + 1
-            assert "http.extraHeader=Authorization: Bearer my_token" == call_args[header_idx]
+            # GIT_ASKPASS must be set in env
+            env = call_kwargs.get("env", {})
+            assert "GIT_ASKPASS" in env
 
-    def test_clone_without_token_has_no_extra_header(self, ingester: RepoIngester):
-        """clone() does not include http.extraHeader when no token."""
+    def test_clone_askpass_passes_token_via_env(self, ingester: RepoIngester):
+        """clone() passes token via GIT_TOKEN env var, not in args."""
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0, stderr="")
+
+            ingester.clone(
+                url="https://github.com/org/repo",
+                project_id="my-project",
+                token="my_token",
+            )
+
+            call_kwargs = mock_run.call_args[1] if mock_run.call_args[1] else {}
+            env = call_kwargs.get("env", {})
+            assert env["GIT_TOKEN"] == "my_token"
+            assert env["GIT_TERMINAL_PROMPT"] == "0"
+
+    def test_clone_without_token_has_no_askpass(self, ingester: RepoIngester):
+        """clone() does not set GIT_ASKPASS when no token."""
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=0, stderr="")
 
@@ -191,8 +210,10 @@ class TestGitClone:
                 project_id="my-project",
             )
 
-            call_args = mock_run.call_args[0][0]
-            assert "-c" not in call_args
+            call_kwargs = mock_run.call_args[1] if mock_run.call_args[1] else {}
+            env = call_kwargs.get("env")
+            if env:
+                assert "GIT_ASKPASS" not in env
 
     def test_inject_token_method_removed(self, ingester: RepoIngester):
         """_inject_token private method no longer exists."""
