@@ -15,7 +15,7 @@ from shesha.rlm.trace import StepType, TokenUsage, Trace, TraceStep
 from shesha.rlm.trace_writer import IncrementalTraceWriter, TraceWriter
 from shesha.sandbox.executor import ContainerExecutor
 from shesha.sandbox.pool import ContainerPool
-from shesha.storage.filesystem import FilesystemStorage
+from shesha.storage.base import StorageBackend
 
 # Callback type for progress notifications
 ProgressCallback = Callable[[StepType, int, str], None]
@@ -137,7 +137,7 @@ class RLMEngine:
         question: str,
         doc_names: list[str] | None = None,
         on_progress: ProgressCallback | None = None,
-        storage: FilesystemStorage | None = None,
+        storage: StorageBackend | None = None,
         project_id: str | None = None,
     ) -> QueryResult:
         """Run an RLM query against documents."""
