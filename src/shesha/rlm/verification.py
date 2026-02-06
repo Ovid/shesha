@@ -1,5 +1,6 @@
 """Post-FINAL citation verification for RLM answers."""
 
+import json
 import re
 from dataclasses import dataclass
 
@@ -76,3 +77,59 @@ def extract_quotes(text: str) -> list[str]:
                 seen.add(quote)
                 result.append(quote)
     return result
+
+
+_MAX_QUOTE_CHECK_LEN = 60
+
+
+def build_verification_code(answer: str) -> str:
+    """Generate Python code that verifies citations in the sandbox.
+
+    Runs extract_citations() and extract_quotes() on the host, then generates
+    minimal Python that does context[N] lookups and substring checks in the
+    sandbox where the context[] array is still loaded.
+    """
+    doc_ids = extract_citations(answer)
+    quotes = extract_quotes(answer)
+
+    # Truncate quotes for fuzzy substring matching
+    truncated_quotes = [q[:_MAX_QUOTE_CHECK_LEN] for q in quotes]
+
+    lines = [
+        "import json",
+        "",
+        "citations = []",
+        "quotes = []",
+    ]
+
+    # Check each cited doc ID exists
+    for doc_id in doc_ids:
+        lines.append(f"try:")
+        lines.append(f"    _ = context[{doc_id}]")
+        lines.append(f"    citations.append({{'doc_id': {doc_id}, 'found': True}})")
+        lines.append(f"except (IndexError, NameError):")
+        lines.append(f"    citations.append({{'doc_id': {doc_id}, 'found': False}})")
+
+    # Check each quote as substring in all cited docs
+    for quote_text in truncated_quotes:
+        safe_quote = json.dumps(quote_text)
+        lines.append(f"_q = {safe_quote}.lower()")
+        lines.append(f"_found = False")
+        lines.append(f"_found_in = -1")
+        for doc_id in doc_ids:
+            lines.append(f"try:")
+            lines.append(f"    if _q in context[{doc_id}].lower():")
+            lines.append(f"        _found = True")
+            lines.append(f"        _found_in = {doc_id}")
+            lines.append(f"except (IndexError, NameError):")
+            lines.append(f"    pass")
+        lines.append(
+            f"quotes.append({{'text': {safe_quote}, 'doc_id': _found_in, 'found': _found}})"
+        )
+
+    lines.append("")
+    lines.append(
+        "print(json.dumps({'citations': citations, 'quotes': quotes}))"
+    )
+
+    return "\n".join(lines)

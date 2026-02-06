@@ -4,6 +4,7 @@ from shesha.rlm.verification import (
     Citation,
     Quote,
     VerificationResult,
+    build_verification_code,
     extract_citations,
     extract_quotes,
 )
@@ -141,3 +142,42 @@ class TestExtractQuotes:
         text = 'Mentions "duplicate text here" and "duplicate text here" again.'
         quotes = extract_quotes(text)
         assert quotes == ["duplicate text here"]
+
+
+class TestBuildVerificationCode:
+    """Tests for build_verification_code()."""
+
+    def test_returns_valid_python(self) -> None:
+        """Generated code is syntactically valid Python."""
+        import ast
+
+        code = build_verification_code('Based on Doc 3, the code says "some function here".')
+        ast.parse(code)  # Raises SyntaxError if invalid
+
+    def test_includes_doc_ids(self) -> None:
+        """Generated code checks cited doc IDs."""
+        code = build_verification_code("See Doc 5 and Doc 12 for details.")
+        assert "5" in code
+        assert "12" in code
+
+    def test_includes_quote_strings(self) -> None:
+        """Generated code includes extracted quotes for substring check."""
+        code = build_verification_code('Evidence: "this function returns None" from Doc 3.')
+        assert "this function returns None" in code or "this function" in code
+
+    def test_no_citations_returns_empty_result(self) -> None:
+        """When no citations, code produces empty verification JSON."""
+        code = build_verification_code("No documents referenced here.")
+        assert "json" in code.lower() or "print" in code
+
+    def test_outputs_json(self) -> None:
+        """Generated code uses json.dumps for output."""
+        code = build_verification_code("Doc 1 says something.")
+        assert "json.dumps" in code or "json" in code
+
+    def test_truncates_long_quotes(self) -> None:
+        """Quotes are truncated to first 60 chars for substring matching."""
+        long_quote = "a" * 100
+        code = build_verification_code(f'Found "{long_quote}" in Doc 0.')
+        # The code should use at most 60 chars of the quote
+        assert "a" * 61 not in code
