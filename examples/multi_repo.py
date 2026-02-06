@@ -5,9 +5,17 @@ This script analyzes how a PRD (Product Requirements Document) impacts
 multiple codebases and generates a draft HLD (High-Level Design).
 
 Usage:
-    python examples/multi_repo.py repo1_url repo2_url [repo3_url ...]
+    # Interactive picker + paste PRD
+    python examples/multi_repo.py
 
-    Then paste your PRD when prompted (end with Ctrl+D or blank line).
+    # Interactive picker + PRD from file
+    python examples/multi_repo.py --prd requirements.md
+
+    # Explicit repos + PRD from file
+    python examples/multi_repo.py repo1_url repo2_url --prd spec.md
+
+    # Explicit repos + paste PRD
+    python examples/multi_repo.py repo1_url repo2_url
 
 Environment Variables:
     SHESHA_API_KEY: Required. API key for your LLM provider.
@@ -15,11 +23,7 @@ Environment Variables:
 
 Example:
     $ export SHESHA_API_KEY="your-api-key"
-    $ python examples/multi_repo.py \\
-        https://github.com/org/auth-service \\
-        https://github.com/org/user-api
-    Paste PRD (Ctrl+D or blank line to finish):
-    ...
+    $ python examples/multi_repo.py --prd my-feature.md
 """
 
 from __future__ import annotations

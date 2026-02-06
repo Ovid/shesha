@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `MultiRepoAnalyzer` for analyzing how PRDs impact multiple codebases
   - Four-phase workflow: recon, impact, synthesize, align
   - Example script `examples/multi_repo.py`
+- `examples/multi_repo.py`: `--prd <path>` argument to read PRD from file
+- `examples/multi_repo.py`: interactive repo picker with all-then-deselect across both storage locations
 - External prompt files in `prompts/` directory for easier customization
 - `python -m shesha.prompts` CLI tool for validating prompt files
 - Support for alternate prompt directories via `SHESHA_PROMPTS_DIR` environment variable
