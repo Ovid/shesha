@@ -26,6 +26,11 @@ class MultiRepoAnalyzer:
     Coordinates analysis of how a PRD impacts multiple codebases,
     running queries against individual projects and synthesizing
     results into a draft HLD.
+
+    Note:
+        Timeout enforcement is not yet implemented. Queries use the
+        default timeouts from the underlying RLM engine. This is a
+        known limitation that requires architectural changes to address.
     """
 
     def __init__(
@@ -33,8 +38,6 @@ class MultiRepoAnalyzer:
         shesha: "Shesha",
         max_discovery_rounds: int = 2,
         max_revision_rounds: int = 2,
-        phase_timeout_seconds: int = 300,
-        total_timeout_seconds: int = 1800,
     ) -> None:
         """Initialize the analyzer.
 
@@ -42,14 +45,10 @@ class MultiRepoAnalyzer:
             shesha: Shesha instance for project management.
             max_discovery_rounds: Max rounds of discovering new repos (default 2).
             max_revision_rounds: Max rounds of HLD revision (default 2).
-            phase_timeout_seconds: Timeout per phase query (default 5 min).
-            total_timeout_seconds: Total analysis timeout (default 30 min).
         """
         self._shesha = shesha
         self._max_discovery_rounds = max_discovery_rounds
         self._max_revision_rounds = max_revision_rounds
-        self._phase_timeout_seconds = phase_timeout_seconds
-        self._total_timeout_seconds = total_timeout_seconds
 
         self._repos: list[str] = []
         self._summaries: dict[str, RepoSummary] = {}

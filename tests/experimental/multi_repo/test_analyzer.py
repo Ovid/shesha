@@ -27,14 +27,10 @@ class TestMultiRepoAnalyzerInit:
             mock_shesha,
             max_discovery_rounds=3,
             max_revision_rounds=4,
-            phase_timeout_seconds=600,
-            total_timeout_seconds=3600,
         )
 
         assert analyzer._max_discovery_rounds == 3
         assert analyzer._max_revision_rounds == 4
-        assert analyzer._phase_timeout_seconds == 600
-        assert analyzer._total_timeout_seconds == 3600
 
     def test_init_default_config(self):
         """Analyzer has sensible defaults."""
@@ -43,8 +39,6 @@ class TestMultiRepoAnalyzerInit:
 
         assert analyzer._max_discovery_rounds == 2
         assert analyzer._max_revision_rounds == 2
-        assert analyzer._phase_timeout_seconds == 300
-        assert analyzer._total_timeout_seconds == 1800
 
 
 class TestMultiRepoAnalyzerProperties:
