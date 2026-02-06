@@ -6,7 +6,7 @@ import re
 import shutil
 import subprocess
 from pathlib import Path
-from urllib.parse import urlparse, urlunparse
+from urllib.parse import urlparse
 
 from shesha.exceptions import AuthenticationError, RepoIngestError
 from shesha.security.paths import safe_path
@@ -94,13 +94,12 @@ class RepoIngester:
         repo_path = self._repo_path(project_id)
         repo_path.mkdir(parents=True, exist_ok=True)
 
-        clone_url = self._inject_token(url, token) if token else url
+        cmd = ["git"]
+        if token:
+            cmd += ["-c", f"http.extraHeader=Authorization: Bearer {token}"]
+        cmd += ["clone", "--depth=1", url, str(repo_path)]
 
-        result = subprocess.run(
-            ["git", "clone", "--depth=1", clone_url, str(repo_path)],
-            capture_output=True,
-            text=True,
-        )
+        result = subprocess.run(cmd, capture_output=True, text=True)
 
         if result.returncode != 0:
             if repo_path.exists():
@@ -110,14 +109,6 @@ class RepoIngester:
             raise RepoIngestError(url, RuntimeError(result.stderr))
 
         return repo_path
-
-    def _inject_token(self, url: str, token: str) -> str:
-        """Inject auth token into HTTPS URL."""
-        parsed = urlparse(url)
-        if parsed.scheme in ("http", "https"):
-            netloc = f"{token}@{parsed.netloc}"
-            return urlunparse(parsed._replace(netloc=netloc))
-        return url
 
     def save_sha(self, project_id: str, sha: str) -> None:
         """Save the HEAD SHA for a project."""

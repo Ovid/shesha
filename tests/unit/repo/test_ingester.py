@@ -159,8 +159,8 @@ class TestGitClone:
             call_args = mock_run.call_args[0][0]
             assert "--depth=1" in call_args
 
-    def test_clone_injects_token_into_url(self, ingester: RepoIngester):
-        """clone() injects token into HTTPS URL."""
+    def test_clone_uses_extra_header_for_token(self, ingester: RepoIngester):
+        """clone() passes token via -c http.extraHeader, NOT in URL."""
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=0, stderr="")
 
@@ -171,8 +171,30 @@ class TestGitClone:
             )
 
             call_args = mock_run.call_args[0][0]
+            # Token must NOT appear in URL
             url_in_cmd = [a for a in call_args if "github.com" in a][0]
-            assert "my_token@github.com" in url_in_cmd
+            assert "my_token" not in url_in_cmd
+            # Token must appear in http.extraHeader
+            assert "-c" in call_args
+            header_idx = call_args.index("-c") + 1
+            assert "http.extraHeader=Authorization: Bearer my_token" == call_args[header_idx]
+
+    def test_clone_without_token_has_no_extra_header(self, ingester: RepoIngester):
+        """clone() does not include http.extraHeader when no token."""
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0, stderr="")
+
+            ingester.clone(
+                url="https://github.com/org/repo",
+                project_id="my-project",
+            )
+
+            call_args = mock_run.call_args[0][0]
+            assert "-c" not in call_args
+
+    def test_inject_token_method_removed(self, ingester: RepoIngester):
+        """_inject_token private method no longer exists."""
+        assert not hasattr(ingester, "_inject_token")
 
     def test_clone_auth_failure_raises(self, ingester: RepoIngester):
         """clone() raises AuthenticationError on auth failure."""
