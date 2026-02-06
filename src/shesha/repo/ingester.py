@@ -128,7 +128,7 @@ class RepoIngester:
         fd, path = tempfile.mkstemp(suffix="_git_askpass.sh")
         try:
             with os.fdopen(fd, "w") as f:
-                f.write("#!/bin/sh\necho \"$GIT_TOKEN\"\n")
+                f.write('#!/bin/sh\necho "$GIT_TOKEN"\n')
             os.chmod(path, stat.S_IRWXU)
         except Exception:
             Path(path).unlink(missing_ok=True)

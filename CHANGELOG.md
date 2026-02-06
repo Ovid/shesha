@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `Shesha.__init__` now accepts optional DI parameters (`storage`, `engine`, `parser_registry`, `repo_ingester`) for testability and extensibility; defaults are backward-compatible
 - `Shesha()` no longer requires Docker at construction time; Docker check and container pool creation are deferred to `start()`, enabling ingest-only workflows without a Docker daemon
 - `Shesha.get_project`, `get_project_info`, `get_analysis_status`, `get_analysis`, `generate_analysis`, `check_repo_for_updates` now raise `ProjectNotFoundError` instead of `ValueError`
 - `Shesha.check_repo_for_updates` raises `RepoError` instead of `ValueError` when no repo URL is stored

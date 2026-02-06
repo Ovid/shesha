@@ -20,10 +20,12 @@ from shesha.exceptions import (
 )
 from shesha.models import ParsedDocument, ProjectInfo, RepoProjectResult
 from shesha.parser import create_default_registry
+from shesha.parser.registry import ParserRegistry
 from shesha.project import Project
 from shesha.repo.ingester import RepoIngester
 from shesha.rlm.engine import RLMEngine
 from shesha.sandbox.pool import ContainerPool
+from shesha.storage.base import StorageBackend
 from shesha.storage.filesystem import FilesystemStorage
 
 if TYPE_CHECKING:
@@ -41,12 +43,22 @@ class Shesha:
         api_key: str | None = None,
         pool_size: int | None = None,
         config: SheshaConfig | None = None,
+        storage: StorageBackend | None = None,
+        engine: RLMEngine | None = None,
+        parser_registry: ParserRegistry | None = None,
+        repo_ingester: RepoIngester | None = None,
     ) -> None:
         """Initialize Shesha.
 
         Does not require Docker. Docker availability is checked lazily
         when start() is called, allowing ingest-only workflows without
         a Docker daemon.
+
+        Components can be injected for testing or extensibility:
+            storage: Custom StorageBackend (default: FilesystemStorage)
+            engine: Custom RLMEngine (default: created from config)
+            parser_registry: Custom ParserRegistry (default: all built-in parsers)
+            repo_ingester: Custom RepoIngester (default: created from config)
         """
         # Use provided config or create from args
         if config is None:
@@ -62,18 +74,18 @@ class Shesha:
 
         self._config = config
 
-        # Initialize components
-        self._storage = FilesystemStorage(
+        # Initialize components (use injected or create defaults)
+        self._storage: StorageBackend = storage or FilesystemStorage(
             config.storage_path,
             keep_raw_files=config.keep_raw_files,
         )
-        self._parser_registry = create_default_registry()
+        self._parser_registry = parser_registry or create_default_registry()
 
         # Pool is created lazily in start()
         self._pool: ContainerPool | None = None
 
         # Create RLM engine (pool set later in start())
-        self._rlm_engine = RLMEngine(
+        self._rlm_engine = engine or RLMEngine(
             model=config.model,
             api_key=config.api_key,
             max_iterations=config.max_iterations,
@@ -83,7 +95,7 @@ class Shesha:
         )
 
         # Initialize repo ingester
-        self._repo_ingester = RepoIngester(storage_path=config.storage_path)
+        self._repo_ingester = repo_ingester or RepoIngester(storage_path=config.storage_path)
 
         # Track if stopped to avoid double-cleanup
         self._stopped = False
