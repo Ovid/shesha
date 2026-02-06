@@ -9,7 +9,7 @@ from shesha.exceptions import TraceWriteError
 from shesha.models import QueryContext
 from shesha.rlm.trace import TokenUsage, Trace, TraceStep
 from shesha.security.redaction import redact
-from shesha.storage.filesystem import FilesystemStorage
+from shesha.storage.base import StorageBackend
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 class TraceWriter:
     """Writes query traces to JSONL files."""
 
-    def __init__(self, storage: FilesystemStorage, suppress_errors: bool = False) -> None:
+    def __init__(self, storage: StorageBackend, suppress_errors: bool = False) -> None:
         """Initialize with storage backend."""
         self.storage = storage
         self.suppress_errors = suppress_errors
@@ -141,7 +141,7 @@ class IncrementalTraceWriter:
     partial traces are available even if the process is interrupted.
     """
 
-    def __init__(self, storage: FilesystemStorage, suppress_errors: bool = False) -> None:
+    def __init__(self, storage: StorageBackend, suppress_errors: bool = False) -> None:
         """Initialize with storage backend."""
         self.storage = storage
         self.suppress_errors = suppress_errors
