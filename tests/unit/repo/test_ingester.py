@@ -40,7 +40,9 @@ class TestRepoIngester:
         """is_local_path returns True for ../ relative paths."""
         assert ingester.is_local_path("../sibling/repo")
 
-    def test_is_local_path_rejects_bare_name(self, ingester: RepoIngester, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    def test_is_local_path_rejects_bare_name(
+        self, ingester: RepoIngester, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
         """is_local_path returns False for bare names even if they exist on disk."""
         target = tmp_path / "somerepo"
         target.mkdir()

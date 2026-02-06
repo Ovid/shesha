@@ -30,12 +30,12 @@ class TestResetAction:
 
     def test_reset_action_returns_ok(self) -> None:
         """Sending reset action returns {"status": "ok"}."""
-        from shesha.sandbox.runner import main
-
         # We test by invoking the runner protocol directly via stdin/stdout
         # Simulate: setup builtins, set a var, send reset, check response
         import io
         import sys
+
+        from shesha.sandbox.runner import main
 
         commands = [
             json.dumps({"action": "reset"}) + "\n",
@@ -59,10 +59,10 @@ class TestResetAction:
 
     def test_reset_clears_user_vars_but_keeps_builtins(self) -> None:
         """Reset clears user-defined vars but preserves FINAL/llm_query."""
-        from shesha.sandbox.runner import main
-
         import io
         import sys
+
+        from shesha.sandbox.runner import main
 
         commands = [
             json.dumps({"action": "execute", "code": "user_var = 'secret'"}) + "\n",

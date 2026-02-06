@@ -793,7 +793,7 @@ class TestResetNamespace:
 
         executor = ContainerExecutor()
 
-        with patch.object(executor, "_send_command", return_value={"status": "ok"}) as mock_cmd:
+        with patch.object(executor, "_send_command", return_value={"status": "ok"}):
             result = executor.reset_namespace()
 
         assert result == {"status": "ok"}
