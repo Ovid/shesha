@@ -385,6 +385,16 @@ class TestMultiRepoAnalyzerAlign:
 class TestMultiRepoAnalyzerAnalyze:
     """Tests for main analyze method."""
 
+    def test_analyze_without_repos_raises_valueerror(self):
+        """analyze() raises ValueError when no repos added."""
+        import pytest
+
+        mock_shesha = MagicMock()
+        analyzer = MultiRepoAnalyzer(mock_shesha)
+
+        with pytest.raises(ValueError, match="No repos added"):
+            analyzer.analyze("Some PRD")
+
     def test_analyze_runs_all_phases(self):
         """analyze() runs all four phases."""
         mock_shesha = MagicMock()
@@ -578,6 +588,258 @@ class TestMultiRepoAnalyzerAnalyze:
         assert "impact" in phases_reported
         assert "synthesize" in phases_reported
         assert "align" in phases_reported
+
+
+class TestMultiRepoAnalyzerRevisionLoop:
+    """Tests for alignment revision loop."""
+
+    def test_revision_loop_runs_when_callback_returns_revise(self):
+        """Revision loop re-synthesizes when on_alignment_issue returns 'revise'."""
+        mock_shesha = MagicMock()
+        mock_project = MagicMock()
+        mock_project.project_id = "test-repo"
+
+        # Recon response
+        recon_result = MagicMock()
+        recon_result.answer = json.dumps(
+            {
+                "apis": [],
+                "models": [],
+                "entry_points": [],
+                "dependencies": [],
+            }
+        )
+
+        # Impact response
+        impact_result = MagicMock()
+        impact_result.answer = json.dumps(
+            {
+                "affected": True,
+                "changes": [],
+                "new_interfaces": [],
+                "modified_interfaces": [],
+                "discovered_dependencies": [],
+            }
+        )
+
+        # First synthesize - has gaps
+        synth_result_1 = MagicMock()
+        synth_result_1.answer = (
+            json.dumps(
+                {
+                    "component_changes": {},
+                    "data_flow": "",
+                    "interface_contracts": [],
+                    "implementation_sequence": [],
+                    "open_questions": [],
+                }
+            )
+            + "\n# HLD v1"
+        )
+
+        # First align - recommends revise
+        align_result_1 = MagicMock()
+        align_result_1.answer = json.dumps(
+            {
+                "covered": [],
+                "gaps": [{"requirement": "R1", "reason": "Missing"}],
+                "scope_creep": [],
+                "alignment_score": 0.5,
+                "recommendation": "revise",
+            }
+        )
+
+        # Second synthesize - fixed
+        synth_result_2 = MagicMock()
+        synth_result_2.answer = (
+            json.dumps(
+                {
+                    "component_changes": {"test": ["Fixed"]},
+                    "data_flow": "",
+                    "interface_contracts": [],
+                    "implementation_sequence": [],
+                    "open_questions": [],
+                }
+            )
+            + "\n# HLD v2"
+        )
+
+        # Second align - approved
+        align_result_2 = MagicMock()
+        align_result_2.answer = json.dumps(
+            {
+                "covered": [{"requirement": "R1", "hld_section": "S1"}],
+                "gaps": [],
+                "scope_creep": [],
+                "alignment_score": 1.0,
+                "recommendation": "approved",
+            }
+        )
+
+        mock_project.query.side_effect = [
+            recon_result,
+            impact_result,
+            synth_result_1,
+            align_result_1,
+            synth_result_2,
+            align_result_2,
+        ]
+        mock_shesha.get_project.return_value = mock_project
+
+        # Callback returns "revise" once
+        alignment_callback = MagicMock(return_value="revise")
+
+        analyzer = MultiRepoAnalyzer(mock_shesha)
+        analyzer._repos = ["test-repo"]
+
+        hld, alignment = analyzer.analyze("PRD", on_alignment_issue=alignment_callback)
+
+        # Should have called query 6 times (recon + impact + synth + align + synth + align)
+        assert mock_project.query.call_count == 6
+        assert alignment.recommendation == "approved"
+        assert "HLD v2" in hld.raw_hld
+        alignment_callback.assert_called_once()
+
+    def test_revision_loop_stops_on_accept(self):
+        """Revision loop stops immediately when callback returns 'accept'."""
+        mock_shesha = MagicMock()
+        mock_project = MagicMock()
+        mock_project.project_id = "test-repo"
+
+        recon_result = MagicMock()
+        recon_result.answer = json.dumps(
+            {"apis": [], "models": [], "entry_points": [], "dependencies": []}
+        )
+
+        impact_result = MagicMock()
+        impact_result.answer = json.dumps(
+            {
+                "affected": True,
+                "changes": [],
+                "new_interfaces": [],
+                "modified_interfaces": [],
+                "discovered_dependencies": [],
+            }
+        )
+
+        synth_result = MagicMock()
+        synth_result.answer = (
+            json.dumps(
+                {
+                    "component_changes": {},
+                    "data_flow": "",
+                    "interface_contracts": [],
+                    "implementation_sequence": [],
+                    "open_questions": [],
+                }
+            )
+            + "\n# HLD"
+        )
+
+        # Align recommends revise but we'll accept
+        align_result = MagicMock()
+        align_result.answer = json.dumps(
+            {
+                "covered": [],
+                "gaps": [{"requirement": "R1", "reason": "Missing"}],
+                "scope_creep": [],
+                "alignment_score": 0.5,
+                "recommendation": "revise",
+            }
+        )
+
+        mock_project.query.side_effect = [recon_result, impact_result, synth_result, align_result]
+        mock_shesha.get_project.return_value = mock_project
+
+        # Callback returns "accept" - stop loop
+        alignment_callback = MagicMock(return_value="accept")
+
+        analyzer = MultiRepoAnalyzer(mock_shesha)
+        analyzer._repos = ["test-repo"]
+
+        hld, alignment = analyzer.analyze("PRD", on_alignment_issue=alignment_callback)
+
+        # Only 4 queries - no revision loop
+        assert mock_project.query.call_count == 4
+        assert alignment.recommendation == "revise"  # Still revise, but we accepted
+        alignment_callback.assert_called_once()
+
+    def test_revision_loop_respects_max_rounds(self):
+        """Revision loop stops after max_revision_rounds even if issues remain."""
+        mock_shesha = MagicMock()
+        mock_project = MagicMock()
+        mock_project.project_id = "test-repo"
+
+        recon_result = MagicMock()
+        recon_result.answer = json.dumps(
+            {"apis": [], "models": [], "entry_points": [], "dependencies": []}
+        )
+
+        impact_result = MagicMock()
+        impact_result.answer = json.dumps(
+            {
+                "affected": True,
+                "changes": [],
+                "new_interfaces": [],
+                "modified_interfaces": [],
+                "discovered_dependencies": [],
+            }
+        )
+
+        synth_result = MagicMock()
+        synth_result.answer = (
+            json.dumps(
+                {
+                    "component_changes": {},
+                    "data_flow": "",
+                    "interface_contracts": [],
+                    "implementation_sequence": [],
+                    "open_questions": [],
+                }
+            )
+            + "\n# HLD"
+        )
+
+        # Align always recommends revise
+        align_result = MagicMock()
+        align_result.answer = json.dumps(
+            {
+                "covered": [],
+                "gaps": [{"requirement": "R1", "reason": "Still missing"}],
+                "scope_creep": [],
+                "alignment_score": 0.5,
+                "recommendation": "revise",
+            }
+        )
+
+        # Will be called: recon, impact, synth, align, synth, align, synth, align (max 2 rounds)
+        # Initial: recon + impact + synth + align
+        # Round 1: synth + align (callback returns "revise")
+        # Round 2: synth + align (callback returns "revise", but max rounds hit)
+        mock_project.query.side_effect = [
+            recon_result,
+            impact_result,
+            synth_result,
+            align_result,
+            synth_result,
+            align_result,
+            synth_result,
+            align_result,
+        ]
+        mock_shesha.get_project.return_value = mock_project
+
+        # Always returns "revise"
+        alignment_callback = MagicMock(return_value="revise")
+
+        analyzer = MultiRepoAnalyzer(mock_shesha, max_revision_rounds=2)
+        analyzer._repos = ["test-repo"]
+
+        hld, alignment = analyzer.analyze("PRD", on_alignment_issue=alignment_callback)
+
+        # 8 queries: recon + impact + synth + align + synth + align + synth + align
+        assert mock_project.query.call_count == 8
+        # Callback called twice (once per revision round)
+        assert alignment_callback.call_count == 2
 
 
 class TestMultiRepoAnalyzerErrorHandling:
