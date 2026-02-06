@@ -567,3 +567,38 @@ class TestFormatAnalysisForDisplay:
         output = format_analysis_for_display(analysis)
 
         assert "This may be wrong." in output
+
+    def test_format_analysis_includes_external_dependencies(self) -> None:
+        """Formatted analysis includes external dependencies."""
+        from examples.script_utils import format_analysis_for_display
+        from shesha.models import AnalysisExternalDep, RepoAnalysis
+
+        dep = AnalysisExternalDep(
+            name="PostgreSQL",
+            type="database",
+            description="Primary data store",
+            used_by=["API Server"],
+            optional=False,
+        )
+        dep_optional = AnalysisExternalDep(
+            name="Redis",
+            type="cache",
+            description="Session cache",
+            used_by=["API Server"],
+            optional=True,
+        )
+        analysis = RepoAnalysis(
+            version="1",
+            generated_at="2026-02-06T10:30:00Z",
+            head_sha="abc123",
+            overview="Test",
+            components=[],
+            external_dependencies=[dep, dep_optional],
+        )
+
+        output = format_analysis_for_display(analysis)
+
+        assert "External Dependencies" in output
+        assert "PostgreSQL" in output
+        assert "(optional)" in output
+        assert "Redis" in output
