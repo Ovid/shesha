@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-02-06
+
 ### Added
 
 - `TraceWriteError` and `EngineNotConfiguredError` exception classes
@@ -45,6 +47,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Project.upload()` with directories now uses relative paths for document names, preventing silent overwrites when files in different subdirectories share the same basename (e.g., `src/foo/main.py` and `src/bar/main.py`)
 - RLM engine now uses the container pool for queries instead of creating throwaway containers, eliminating cold-start overhead and idle resource waste
 - Pool-backed executor cleanup no longer masks query results or leaks executors when `reset_namespace()` fails (e.g., after a protocol error closes the socket)
+- `ContainerPool.acquire()` now raises `RuntimeError` when pool is stopped, preventing container creation after shutdown
+- `Shesha.start()` is now idempotent — calling it twice no longer leaks orphaned container pools
+- Local repo paths (`./foo`, `../bar`) are now resolved to absolute paths before saving, preventing breakage when working directory changes between sessions
 
 ### Removed
 
