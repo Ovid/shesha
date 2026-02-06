@@ -245,3 +245,77 @@ class TestAnalysisExternalDep:
         )
 
         assert dep.optional is True
+
+
+class TestRepoAnalysis:
+    """Tests for RepoAnalysis dataclass."""
+
+    def test_repo_analysis_all_fields(self):
+        """RepoAnalysis stores all fields correctly."""
+        from shesha.models import AnalysisComponent, AnalysisExternalDep, RepoAnalysis
+
+        comp = AnalysisComponent(
+            name="API",
+            path="api/",
+            description="REST API",
+            apis=[],
+            models=[],
+            entry_points=[],
+            internal_dependencies=[],
+        )
+        dep = AnalysisExternalDep(
+            name="Redis",
+            type="database",
+            description="Cache",
+            used_by=["api"],
+        )
+
+        analysis = RepoAnalysis(
+            version="1",
+            generated_at="2026-02-06T10:30:00Z",
+            head_sha="abc123def456",
+            overview="A sample application.",
+            components=[comp],
+            external_dependencies=[dep],
+        )
+
+        assert analysis.version == "1"
+        assert analysis.generated_at == "2026-02-06T10:30:00Z"
+        assert analysis.head_sha == "abc123def456"
+        assert analysis.overview == "A sample application."
+        assert len(analysis.components) == 1
+        assert analysis.components[0].name == "API"
+        assert len(analysis.external_dependencies) == 1
+        assert analysis.external_dependencies[0].name == "Redis"
+
+    def test_repo_analysis_default_caveats(self):
+        """RepoAnalysis has default caveats message."""
+        from shesha.models import RepoAnalysis
+
+        analysis = RepoAnalysis(
+            version="1",
+            generated_at="2026-02-06T10:30:00Z",
+            head_sha="abc123",
+            overview="Test",
+            components=[],
+            external_dependencies=[],
+        )
+
+        assert "AI" in analysis.caveats
+        assert "incorrect" in analysis.caveats
+
+    def test_repo_analysis_custom_caveats(self):
+        """RepoAnalysis can have custom caveats."""
+        from shesha.models import RepoAnalysis
+
+        analysis = RepoAnalysis(
+            version="1",
+            generated_at="2026-02-06T10:30:00Z",
+            head_sha="abc123",
+            overview="Test",
+            components=[],
+            external_dependencies=[],
+            caveats="Custom warning.",
+        )
+
+        assert analysis.caveats == "Custom warning."
