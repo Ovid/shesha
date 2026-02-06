@@ -33,6 +33,7 @@ from shesha import Shesha, SheshaConfig
 from shesha.experimental.multi_repo import AlignmentReport, MultiRepoAnalyzer
 
 STORAGE_PATH = Path.home() / ".shesha" / "multi-repo"
+EXPLORER_STORAGE_PATH = Path.home() / ".shesha" / "repo-explorer"
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -88,6 +89,34 @@ def read_prd(prd_path: str | None) -> str:
     print()
     print("Paste PRD (Ctrl+D or blank line to finish):")
     return read_multiline_input()
+
+
+def collect_repos_from_storages(
+    multi_shesha: Shesha, explorer_shesha: Shesha
+) -> list[tuple[str, str | None, str]]:
+    """Collect repos from both multi-repo and repo-explorer storages.
+
+    Returns list of (project_id, source_url, storage_label) tuples.
+    Multi-repo storage takes priority for deduplication.
+    """
+    repos: list[tuple[str, str | None, str]] = []
+    seen_ids: set[str] = set()
+
+    # Multi-repo storage first (takes priority)
+    for project_id in multi_shesha.list_projects():
+        info = multi_shesha.get_project_info(project_id)
+        repos.append((project_id, info.source_url, "multi-repo"))
+        seen_ids.add(project_id)
+
+    # Repo-explorer storage (skip duplicates)
+    for project_id in explorer_shesha.list_projects():
+        if project_id in seen_ids:
+            continue
+        info = explorer_shesha.get_project_info(project_id)
+        repos.append((project_id, info.source_url, "repo-explorer"))
+        seen_ids.add(project_id)
+
+    return repos
 
 
 def main() -> None:

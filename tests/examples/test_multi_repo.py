@@ -2,7 +2,7 @@
 
 import sys
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -91,3 +91,95 @@ class TestReadPrd:
         with patch("multi_repo.read_multiline_input", return_value="PRD from stdin"):
             result = read_prd(None)
         assert result == "PRD from stdin"
+
+
+class TestCollectReposFromStorages:
+    """Tests for collect_repos_from_storages."""
+
+    def test_returns_repos_from_both_storages(self) -> None:
+        """Repos from both storages are returned."""
+        from multi_repo import collect_repos_from_storages
+
+        mock_multi = MagicMock()
+        mock_multi.list_projects.return_value = ["org-auth"]
+        mock_multi.get_project_info.return_value = MagicMock(
+            project_id="org-auth",
+            source_url="https://github.com/org/auth",
+            is_local=False,
+            source_exists=True,
+        )
+
+        mock_explorer = MagicMock()
+        mock_explorer.list_projects.return_value = ["org-api"]
+        mock_explorer.get_project_info.return_value = MagicMock(
+            project_id="org-api",
+            source_url="https://github.com/org/api",
+            is_local=False,
+            source_exists=True,
+        )
+
+        repos = collect_repos_from_storages(mock_multi, mock_explorer)
+        assert len(repos) == 2
+        ids = [r[0] for r in repos]
+        assert "org-auth" in ids
+        assert "org-api" in ids
+
+    def test_deduplicates_preferring_multi_repo(self) -> None:
+        """Same project_id in both storages uses multi-repo copy."""
+        from multi_repo import collect_repos_from_storages
+
+        mock_multi = MagicMock()
+        mock_multi.list_projects.return_value = ["org-repo"]
+        mock_multi.get_project_info.return_value = MagicMock(
+            project_id="org-repo",
+            source_url="https://github.com/org/repo",
+            is_local=False,
+            source_exists=True,
+        )
+
+        mock_explorer = MagicMock()
+        mock_explorer.list_projects.return_value = ["org-repo"]
+        mock_explorer.get_project_info.return_value = MagicMock(
+            project_id="org-repo",
+            source_url="https://github.com/org/repo",
+            is_local=False,
+            source_exists=True,
+        )
+
+        repos = collect_repos_from_storages(mock_multi, mock_explorer)
+        assert len(repos) == 1
+        assert repos[0][2] == "multi-repo"
+
+    def test_empty_storages(self) -> None:
+        """No repos in either storage returns empty list."""
+        from multi_repo import collect_repos_from_storages
+
+        mock_multi = MagicMock()
+        mock_multi.list_projects.return_value = []
+
+        mock_explorer = MagicMock()
+        mock_explorer.list_projects.return_value = []
+
+        repos = collect_repos_from_storages(mock_multi, mock_explorer)
+        assert repos == []
+
+    def test_explorer_only(self) -> None:
+        """Repos only in explorer storage are returned."""
+        from multi_repo import collect_repos_from_storages
+
+        mock_multi = MagicMock()
+        mock_multi.list_projects.return_value = []
+
+        mock_explorer = MagicMock()
+        mock_explorer.list_projects.return_value = ["Ovid-shesha"]
+        mock_explorer.get_project_info.return_value = MagicMock(
+            project_id="Ovid-shesha",
+            source_url="https://github.com/Ovid/shesha/",
+            is_local=False,
+            source_exists=True,
+        )
+
+        repos = collect_repos_from_storages(mock_multi, mock_explorer)
+        assert len(repos) == 1
+        assert repos[0][0] == "Ovid-shesha"
+        assert repos[0][2] == "repo-explorer"
