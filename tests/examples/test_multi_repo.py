@@ -320,7 +320,7 @@ class TestMainIntegration:
                                             try:
                                                 main()
                                             except (SystemExit, Exception):
-                                                pass  # main() may exit; we only check picker was called
+                                                pass  # may exit; we check mock below
 
         mock_picker.assert_called_once()
 
@@ -348,7 +348,7 @@ class TestMainIntegration:
                                         try:
                                             main()
                                         except (SystemExit, Exception):
-                                            pass  # main() may exit; we only check picker was not called
+                                            pass  # may exit; we check mock below
 
         mock_picker.assert_not_called()
 
