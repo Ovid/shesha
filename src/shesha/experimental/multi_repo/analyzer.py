@@ -1,6 +1,7 @@
 """Multi-repo PRD analyzer using federated queries."""
 
 import json
+import logging
 import re
 from collections.abc import Callable
 from pathlib import Path
@@ -15,6 +16,8 @@ from shesha.experimental.multi_repo.models import (
 
 if TYPE_CHECKING:
     from shesha import Shesha
+
+logger = logging.getLogger(__name__)
 
 
 class MultiRepoAnalyzer:
@@ -100,6 +103,7 @@ class MultiRepoAnalyzer:
 
             return project_id
         except Exception as e:
+            logger.warning("Failed to add repo %s: %s", url_or_path, e, exc_info=True)
             self._failed_repos[url_or_path] = str(e)
             return None
 
