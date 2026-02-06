@@ -559,9 +559,7 @@ class TestExtractRepoName:
     def test_https_url_dot_git_trailing_slash(self, tmp_path: Path):
         """HTTPS URL with .git and trailing slash extracts org-repo name."""
         shesha = self._make_shesha(tmp_path)
-        assert (
-            shesha._extract_repo_name("https://github.com/Ovid/shesha.git/") == "Ovid-shesha"
-        )
+        assert shesha._extract_repo_name("https://github.com/Ovid/shesha.git/") == "Ovid-shesha"
 
     def test_ssh_url(self, tmp_path: Path):
         """SSH git URL extracts org-repo name."""
@@ -571,9 +569,7 @@ class TestExtractRepoName:
     def test_gitlab_url(self, tmp_path: Path):
         """GitLab URL extracts org-repo name."""
         shesha = self._make_shesha(tmp_path)
-        assert (
-            shesha._extract_repo_name("https://gitlab.com/myorg/myrepo") == "myorg-myrepo"
-        )
+        assert shesha._extract_repo_name("https://gitlab.com/myorg/myrepo") == "myorg-myrepo"
 
     def test_local_path_uses_parent_and_name(self, tmp_path: Path):
         """Local path extracts parent-name to avoid collisions."""
