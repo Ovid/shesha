@@ -5,7 +5,7 @@ import logging
 import re
 from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from shesha.experimental.multi_repo.models import (
     AlignmentReport,
@@ -162,7 +162,7 @@ class MultiRepoAnalyzer:
         end_idx = text.rfind("}")
         if end_idx > start_idx:
             try:
-                return json.loads(text[start_idx : end_idx + 1])
+                return cast(dict[str, Any], json.loads(text[start_idx : end_idx + 1]))
             except json.JSONDecodeError:
                 pass  # Fall through to slower search
 
@@ -170,7 +170,7 @@ class MultiRepoAnalyzer:
         for end_idx in range(len(text) - 1, start_idx, -1):
             if text[end_idx] == "}":
                 try:
-                    return json.loads(text[start_idx : end_idx + 1])
+                    return cast(dict[str, Any], json.loads(text[start_idx : end_idx + 1]))
                 except json.JSONDecodeError:
                     continue
 
