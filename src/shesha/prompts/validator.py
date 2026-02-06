@@ -74,13 +74,13 @@ def validate_prompt(filename: str, content: str) -> None:
         if "<untrusted_document_content>" not in content:
             raise PromptValidationError(
                 f"{filename} is missing required <untrusted_document_content> tag.\n\n"
-                "The subcall prompt MUST wrap {{content}} in "
+                "The subcall prompt MUST wrap {content} in "
                 "<untrusted_document_content> tags to defend against prompt injection."
             )
         if "</untrusted_document_content>" not in content:
             raise PromptValidationError(
                 f"{filename} is missing required </untrusted_document_content> closing tag.\n\n"
-                "The subcall prompt MUST wrap {{content}} in "
+                "The subcall prompt MUST wrap {content} in "
                 "<untrusted_document_content> tags to defend against prompt injection."
             )
 
