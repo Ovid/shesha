@@ -103,6 +103,18 @@ class TestDockerAvailability:
         # Should not raise
         shesha.stop()
 
+    def test_start_is_idempotent(self, tmp_path: Path):
+        """Calling start() twice creates only one pool."""
+        with (
+            patch("shesha.shesha.docker"),
+            patch("shesha.shesha.ContainerPool") as mock_pool_cls,
+        ):
+            shesha = Shesha(model="test-model", storage_path=tmp_path)
+            shesha.start()
+            shesha.start()
+
+            mock_pool_cls.assert_called_once()
+
     def test_start_sets_pool_on_engine(self, tmp_path: Path):
         """start() sets the pool on the RLM engine."""
         mock_pool = MagicMock()
@@ -402,6 +414,30 @@ class TestCreateProjectFromRepo:
 
                 mock_ingester.save_source_url.assert_called_once_with(
                     "my-project", "/path/to/local/repo"
+                )
+
+    def test_saves_resolved_source_url_for_relative_local_path(self, tmp_path: Path):
+        """create_project_from_repo resolves relative local paths before saving."""
+        with patch("shesha.shesha.docker"), patch("shesha.shesha.ContainerPool"):
+            with patch("shesha.shesha.RepoIngester") as mock_ingester_cls:
+                mock_ingester = MagicMock()
+                mock_ingester_cls.return_value = mock_ingester
+
+                mock_ingester.is_local_path.return_value = True
+                mock_ingester.get_saved_sha.return_value = None
+                mock_ingester.get_sha_from_path.return_value = "abc123"
+                mock_ingester.list_files_from_path.return_value = []
+                mock_ingester.repos_dir = tmp_path / "repos"
+
+                shesha = Shesha(model="test-model", storage_path=tmp_path)
+                shesha.create_project_from_repo(
+                    url="./myrepo",
+                    name="my-project",
+                )
+
+                saved_url = mock_ingester.save_source_url.call_args[0][1]
+                assert Path(saved_url).is_absolute(), (
+                    f"Expected absolute path but got: {saved_url}"
                 )
 
     def test_raises_for_non_git_local_path(self, tmp_path: Path):

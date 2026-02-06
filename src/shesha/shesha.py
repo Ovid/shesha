@@ -327,6 +327,8 @@ class Shesha:
 
     def start(self) -> None:
         """Check Docker availability, create the container pool, and start it."""
+        if self._pool is not None and not self._stopped:
+            return
         self._check_docker_available()
         self._stopped = False
         self._pool = ContainerPool(
@@ -497,8 +499,12 @@ class Shesha:
         if sha:
             self._repo_ingester.save_sha(name, sha)
 
-        # Save source URL for later retrieval
-        self._repo_ingester.save_source_url(name, url)
+        # Save source URL for later retrieval (resolve local paths for CWD stability)
+        if self._repo_ingester.is_local_path(url):
+            save_url = str(Path(url).expanduser().resolve())
+        else:
+            save_url = url
+        self._repo_ingester.save_source_url(name, save_url)
 
         project = self.get_project(name)
         return RepoProjectResult(

@@ -51,6 +51,8 @@ class ContainerPool:
     def acquire(self) -> ContainerExecutor:
         """Acquire an executor from the pool."""
         with self._lock:
+            if not self._started:
+                raise RuntimeError("Cannot acquire from a stopped pool")
             if self._available:
                 executor = self._available.popleft()
             else:
