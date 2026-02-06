@@ -161,6 +161,19 @@ class TestShesha:
             call_kwargs = mock_engine_cls.call_args[1]
             assert call_kwargs.get("pool") is mock_pool
 
+    def test_shesha_uses_config_load_by_default(self, tmp_path: Path):
+        """Shesha uses SheshaConfig.load() by default, picking up env vars."""
+        import os
+        from unittest.mock import patch as mock_patch
+
+        with (
+            mock_patch("shesha.shesha.docker"),
+            mock_patch("shesha.shesha.ContainerPool"),
+            mock_patch.dict(os.environ, {"SHESHA_MAX_ITERATIONS": "99"}),
+        ):
+            shesha = Shesha(storage_path=tmp_path)
+            assert shesha._config.max_iterations == 99
+
     def test_delete_project_cleans_up_remote_repo(self, tmp_path: Path):
         """delete_project removes cloned repo for remote projects by default."""
         with patch("shesha.shesha.docker"), patch("shesha.shesha.ContainerPool"):

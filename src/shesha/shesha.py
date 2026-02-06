@@ -48,7 +48,7 @@ class Shesha:
 
         # Use provided config or create from args
         if config is None:
-            config = SheshaConfig()
+            config = SheshaConfig.load()
         if model is not None:
             config.model = model
         if storage_path is not None:
