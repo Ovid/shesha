@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-02-05
+
 ### Added
 
 - External prompt files in `prompts/` directory for easier customization
@@ -22,6 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Interactive Docker installation with guided setup and platform-specific instructions when Docker is missing
 - Graceful Docker degradation: Shesha initializes successfully without Docker; queries disabled until Docker is available
 - Docker status tracking in manifest (`infra.docker_available` field)
+
+### Fixed
+
+- Docker HTTP client resource leak causing "ValueError: I/O operation on closed file" during garbage collection
 
 ## [0.3.0] 2026-02-04
 
