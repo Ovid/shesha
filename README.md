@@ -366,9 +366,9 @@ ruff format src tests
 make all
 ```
 
-## Development Setup
+## Architecture & Development
 
-See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for local tooling and GitHub Copilot setup.
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the technical manual, development workflow, and security model.
 
 ## Project Structure
 
