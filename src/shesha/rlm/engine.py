@@ -202,7 +202,8 @@ class RLMEngine:
             on_step(step)
         if on_progress:
             on_progress(
-                StepType.SEMANTIC_VERIFICATION, iteration,
+                StepType.SEMANTIC_VERIFICATION,
+                iteration,
                 f"Layer 1 complete: {len(findings)} findings",
             )
 
@@ -210,17 +211,19 @@ class RLMEngine:
         content_type = detect_content_type(doc_names)
         if content_type == "code":
             layer1_json = json.dumps(
-                {"findings": [
-                    {
-                        "finding_id": f.finding_id,
-                        "original_claim": f.original_claim,
-                        "confidence": f.confidence,
-                        "reason": f.reason,
-                        "evidence_classification": f.evidence_classification,
-                        "flags": f.flags,
-                    }
-                    for f in findings
-                ]},
+                {
+                    "findings": [
+                        {
+                            "finding_id": f.finding_id,
+                            "original_claim": f.original_claim,
+                            "confidence": f.confidence,
+                            "reason": f.reason,
+                            "evidence_classification": f.evidence_classification,
+                            "flags": f.flags,
+                        }
+                        for f in findings
+                    ]
+                },
                 indent=2,
             )
 
@@ -239,7 +242,8 @@ class RLMEngine:
                 on_step(step)
             if on_progress:
                 on_progress(
-                    StepType.SEMANTIC_VERIFICATION, iteration,
+                    StepType.SEMANTIC_VERIFICATION,
+                    iteration,
                     "Code-specific verification",
                 )
 
@@ -260,7 +264,8 @@ class RLMEngine:
                 on_step(step)
             if on_progress:
                 on_progress(
-                    StepType.SEMANTIC_VERIFICATION, iteration,
+                    StepType.SEMANTIC_VERIFICATION,
+                    iteration,
                     f"Layer 2 complete: {len(findings)} findings",
                 )
 

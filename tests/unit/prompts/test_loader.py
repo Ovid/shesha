@@ -27,8 +27,7 @@ def valid_prompts_dir(tmp_path: Path) -> Path:
         "Verify {findings} against {documents}. JSON: {{{{ }}}}"
     )
     (prompts_dir / "verify_code.md").write_text(
-        "Previous: {previous_results}\nFindings: {findings}\nDocs: {documents}\n"
-        "JSON: {{{{ }}}}"
+        "Previous: {previous_results}\nFindings: {findings}\nDocs: {documents}\nJSON: {{{{ }}}}"
     )
 
     return prompts_dir

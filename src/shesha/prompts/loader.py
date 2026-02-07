@@ -110,9 +110,7 @@ class PromptLoader:
         """Render the code_required prompt (no variables)."""
         return self._prompts["code_required.md"]
 
-    def render_verify_adversarial_prompt(
-        self, findings: str, documents: str
-    ) -> str:
+    def render_verify_adversarial_prompt(self, findings: str, documents: str) -> str:
         """Render the adversarial verification prompt."""
         return self._prompts["verify_adversarial.md"].format(
             findings=findings,

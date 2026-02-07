@@ -695,7 +695,11 @@ class TestFormatVerifiedOutput:
         )
         output = format_verified_output("Original", report)
         assert "Verified Findings" in output
-        assert "0 findings filtered" in output or "no findings filtered" in output.lower() or "Appendix" in output
+        assert (
+            "0 findings filtered" in output
+            or "no findings filtered" in output.lower()
+            or "Appendix" in output
+        )
 
 
 class TestFormatAnalysisForDisplay:

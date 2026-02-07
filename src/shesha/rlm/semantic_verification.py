@@ -95,18 +95,14 @@ def detect_content_type(doc_names: list[str]) -> str:
     if not doc_names:
         return "general"
     code_count = sum(
-        1
-        for name in doc_names
-        if PurePosixPath(name).suffix.lower() in CODE_EXTENSIONS
+        1 for name in doc_names if PurePosixPath(name).suffix.lower() in CODE_EXTENSIONS
     )
     if code_count > len(doc_names) / 2:
         return "code"
     return "general"
 
 
-def gather_cited_documents(
-    answer: str, documents: list[str], doc_names: list[str]
-) -> str:
+def gather_cited_documents(answer: str, documents: list[str], doc_names: list[str]) -> str:
     """Gather documents cited in the answer into a formatted string.
 
     Extracts citation IDs from the answer, looks up corresponding documents,

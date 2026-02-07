@@ -408,16 +408,20 @@ class TestRLMEngine:
         mock_llm_cls: MagicMock,
     ) -> None:
         """Engine runs semantic verification when verify=True."""
-        verification_findings = json.dumps({
-            "findings": [{
-                "finding_id": "P0.1",
-                "original_claim": "Issue",
-                "confidence": "high",
-                "reason": "Confirmed.",
-                "evidence_classification": "code_analysis",
-                "flags": [],
-            }]
-        })
+        verification_findings = json.dumps(
+            {
+                "findings": [
+                    {
+                        "finding_id": "P0.1",
+                        "original_claim": "Issue",
+                        "confidence": "high",
+                        "reason": "Confirmed.",
+                        "evidence_classification": "code_analysis",
+                        "flags": [],
+                    }
+                ]
+            }
+        )
 
         # Mock LLM: first call is the main query, subsequent calls are verification subcalls.
         # doc_names=["main.py"] is a code file, so Layer 2 also runs (3 LLM calls total).
@@ -449,19 +453,27 @@ class TestRLMEngine:
 
         mock_executor = MagicMock()
         mock_executor.is_alive = True
-        verification_json = json.dumps({
-            "citations": [{"doc_id": 0, "found": True}],
-            "quotes": [],
-        })
+        verification_json = json.dumps(
+            {
+                "citations": [{"doc_id": 0, "found": True}],
+                "quotes": [],
+            }
+        )
         mock_executor.execute.side_effect = [
             # FINAL execution
             MagicMock(
-                status="ok", stdout="", stderr="", error=None,
+                status="ok",
+                stdout="",
+                stderr="",
+                error=None,
                 final_answer="## P0.1: Issue\nSee Doc 0.",
             ),
             # Mechanical verification
             MagicMock(
-                status="ok", stdout=verification_json, stderr="", error=None,
+                status="ok",
+                stdout=verification_json,
+                stderr="",
+                error=None,
                 final_answer=None,
             ),
         ]
@@ -498,7 +510,10 @@ class TestRLMEngine:
         mock_executor = MagicMock()
         mock_executor.is_alive = True
         mock_executor.execute.return_value = MagicMock(
-            status="ok", stdout="", stderr="", error=None,
+            status="ok",
+            stdout="",
+            stderr="",
+            error=None,
             final_answer="answer",
         )
         mock_executor_cls.return_value = mock_executor
@@ -539,7 +554,10 @@ class TestRLMEngine:
         mock_executor = MagicMock()
         mock_executor.is_alive = True
         mock_executor.execute.return_value = MagicMock(
-            status="ok", stdout="", stderr="", error=None,
+            status="ok",
+            stdout="",
+            stderr="",
+            error=None,
             final_answer=final_answer_text,
         )
         mock_executor_cls.return_value = mock_executor
@@ -554,10 +572,7 @@ class TestRLMEngine:
         assert result.answer == final_answer_text
         assert result.semantic_verification is None
         # Error recorded in trace
-        sem_steps = [
-            s for s in result.trace.steps
-            if s.type == StepType.SEMANTIC_VERIFICATION
-        ]
+        sem_steps = [s for s in result.trace.steps if s.type == StepType.SEMANTIC_VERIFICATION]
         assert len(sem_steps) >= 1
         last_step = sem_steps[-1].content
         assert "error" in last_step.lower() or "Could not parse" in last_step
