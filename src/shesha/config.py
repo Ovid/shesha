@@ -8,6 +8,22 @@ from typing import Any
 
 import yaml
 
+_BOOL_TRUE = {"true", "1", "yes"}
+_BOOL_FALSE = {"false", "0", "no"}
+
+
+def _parse_bool_env(env_var: str, value: str) -> bool:
+    """Parse a boolean environment variable, raising on unrecognized values."""
+    lower = value.lower()
+    if lower in _BOOL_TRUE:
+        return True
+    if lower in _BOOL_FALSE:
+        return False
+    raise ValueError(
+        f"Invalid value for {env_var}: {value!r}. "
+        f"Expected one of: {', '.join(sorted(_BOOL_TRUE | _BOOL_FALSE))}"
+    )
+
 
 @dataclass
 class SheshaConfig:
@@ -42,7 +58,7 @@ class SheshaConfig:
         """Create config from environment variables."""
         verify_env = os.environ.get("SHESHA_VERIFY_CITATIONS")
         verify = (
-            verify_env.lower() in {"true", "1", "yes"}
+            _parse_bool_env("SHESHA_VERIFY_CITATIONS", verify_env)
             if verify_env is not None
             else cls.verify_citations
         )
@@ -103,7 +119,7 @@ class SheshaConfig:
                 if field_name in {"pool_size", "max_iterations", "max_traces_per_project"}:
                     env_val = int(env_val)
                 elif field_name in {"verify_citations"}:
-                    env_val = env_val.lower() in {"true", "1", "yes"}
+                    env_val = _parse_bool_env(env_var, env_val)
                 config_dict[field_name] = env_val
 
         # Layer 4: Explicit overrides (highest priority)

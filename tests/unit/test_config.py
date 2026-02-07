@@ -115,6 +115,22 @@ class TestVerifyCitationsConfig:
         config = SheshaConfig.from_env()
         assert config.verify_citations is False
 
+    def test_verify_citations_invalid_env_raises_in_load(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """load() raises ValueError for unrecognized SHESHA_VERIFY_CITATIONS value."""
+        monkeypatch.setenv("SHESHA_VERIFY_CITATIONS", "treu")
+        with pytest.raises(ValueError, match="SHESHA_VERIFY_CITATIONS"):
+            SheshaConfig.load()
+
+    def test_verify_citations_invalid_env_raises_in_from_env(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """from_env() raises ValueError for unrecognized SHESHA_VERIFY_CITATIONS value."""
+        monkeypatch.setenv("SHESHA_VERIFY_CITATIONS", "yse")
+        with pytest.raises(ValueError, match="SHESHA_VERIFY_CITATIONS"):
+            SheshaConfig.from_env()
+
 
 def test_config_has_no_allowed_hosts():
     """allowed_hosts was removed — config must not have it."""
