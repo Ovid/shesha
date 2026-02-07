@@ -6,6 +6,7 @@ from shesha.rlm.semantic_verification import (
     FindingVerification,
     SemanticVerificationReport,
     detect_content_type,
+    gather_cited_documents,
 )
 
 
@@ -176,3 +177,50 @@ class TestDetectContentType:
     def test_exactly_half_returns_general(self) -> None:
         """Exactly half code files returns 'general' (strict majority)."""
         assert detect_content_type(["main.py", "README.md"]) == "general"
+
+
+class TestGatherCitedDocuments:
+    """Tests for gather_cited_documents()."""
+
+    def test_gathers_cited_docs_excludes_uncited(self) -> None:
+        """Only cited documents are gathered, uncited ones excluded."""
+        answer = "According to Doc 0, the function works correctly."
+        documents = ["Content of doc zero", "Content of doc one"]
+        doc_names = ["main.py", "utils.py"]
+        result = gather_cited_documents(answer, documents, doc_names)
+        assert "Content of doc zero" in result
+        assert "Content of doc one" not in result
+
+    def test_includes_doc_name_in_header(self) -> None:
+        """Document name is included in the header."""
+        answer = "See Doc 0 for details."
+        documents = ["Some content"]
+        doc_names = ["main.py"]
+        result = gather_cited_documents(answer, documents, doc_names)
+        assert "### Document 0 (main.py)" in result
+
+    def test_out_of_range_ids_skipped(self) -> None:
+        """Out-of-range document IDs are silently skipped."""
+        answer = "Doc 0 and Doc 99 are relevant."
+        documents = ["Content of doc zero"]
+        doc_names = ["main.py"]
+        result = gather_cited_documents(answer, documents, doc_names)
+        assert "Content of doc zero" in result
+        assert "99" not in result
+
+    def test_no_citations_returns_empty_string(self) -> None:
+        """No citations in the answer returns empty string."""
+        answer = "No documents referenced here."
+        documents = ["Content of doc zero"]
+        doc_names = ["main.py"]
+        result = gather_cited_documents(answer, documents, doc_names)
+        assert result == ""
+
+    def test_context_n_pattern_works(self) -> None:
+        """context[N] citation pattern is recognized."""
+        answer = "I found in context[1] that the function returns None."
+        documents = ["First doc", "Second doc"]
+        doc_names = ["first.py", "second.py"]
+        result = gather_cited_documents(answer, documents, doc_names)
+        assert "Second doc" in result
+        assert "### Document 1 (second.py)" in result

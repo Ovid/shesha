@@ -3,6 +3,8 @@
 from dataclasses import dataclass, field
 from pathlib import PurePosixPath
 
+from shesha.rlm.verification import extract_citations
+
 
 @dataclass
 class FindingVerification:
@@ -98,3 +100,21 @@ def detect_content_type(doc_names: list[str]) -> str:
     if code_count > len(doc_names) / 2:
         return "code"
     return "general"
+
+
+def gather_cited_documents(
+    answer: str, documents: list[str], doc_names: list[str]
+) -> str:
+    """Gather documents cited in the answer into a formatted string.
+
+    Extracts citation IDs from the answer, looks up corresponding documents,
+    and formats them with headers. Out-of-range IDs are silently skipped.
+    Returns empty string if no valid citations are found.
+    """
+    cited_ids = extract_citations(answer)
+    sections: list[str] = []
+    for doc_id in cited_ids:
+        if 0 <= doc_id < len(documents):
+            header = f"### Document {doc_id} ({doc_names[doc_id]})"
+            sections.append(f"{header}\n\n{documents[doc_id]}")
+    return "\n\n---\n\n".join(sections)
