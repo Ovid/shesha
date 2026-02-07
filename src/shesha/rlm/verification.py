@@ -123,7 +123,7 @@ def build_verification_code(answer: str) -> str:
         lines.append("_found_in = -1")
         for doc_id in doc_ids:
             lines.append("try:")
-            lines.append(f"    if _q in context[{doc_id}].lower():")
+            lines.append(f"    if not _found and _q in context[{doc_id}].lower():")
             lines.append("        _found = True")
             lines.append(f"        _found_in = {doc_id}")
             lines.append("except (IndexError, NameError):")

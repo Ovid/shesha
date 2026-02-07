@@ -183,6 +183,23 @@ class TestBuildVerificationCode:
         code = build_verification_code("Doc 1 says something.")
         assert "json.dumps" in code or "json" in code
 
+    def test_quote_reports_first_matching_doc(self) -> None:
+        """Generated code reports first matching doc, not last."""
+        # Quote appears in both Doc 0 and Doc 1
+        answer = 'Doc 0 and Doc 1 say "shared phrase here".'
+        code = build_verification_code(answer)
+
+        # Execute generated code with context where quote appears in both docs
+        context = ["shared phrase here is in doc 0", "shared phrase here is in doc 1"]
+        namespace: dict[str, object] = {"context": context}
+        exec(compile(code, "<test>", "exec"), namespace)
+
+
+        output = namespace.get("quotes")
+        assert output is not None
+        assert len(output) == 1  # type: ignore[arg-type]
+        assert output[0]["doc_id"] == 0  # type: ignore[index]
+
     def test_truncates_long_quotes(self) -> None:
         """Quotes are truncated to first 60 chars for substring matching."""
         long_quote = "a" * 100
