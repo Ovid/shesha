@@ -41,6 +41,10 @@ Choose initial keywords based on the question AND scouting results. After search
 
 Send combined excerpts to a single `llm_query()` call. Only split into 2-3 batches if content exceeds {max_subcall_chars:,} chars. Then return FINAL.
 
+**Subcall instruction quality**: Your `llm_query()` instruction determines the depth of analysis. Ask for detailed analysis with evidence (direct quotes), explanations of why each finding matters, and actionable mitigations or recommendations. Avoid asking for "concise" or "brief" output — depth and evidence are more valuable than brevity.
+
+**Depth through instruction quality, not additional subcalls**: Iterate freely to refine your search strategy, but concentrate your `llm_query()` calls. Gather all your evidence first, then make your subcall(s) in one go. Don't make follow-up subcalls to "dig deeper" on results from a previous subcall — instead, write a more specific initial instruction that asks for the depth you need upfront.
+
 **IMPORTANT — Minimize sub-LLM calls**: Each `llm_query()` call is expensive (time + tokens). Aim for **1-3 calls maximum** per query. A single call that sees all evidence is always better than multiple calls that each see fragments. Only split into 2-3 calls when content exceeds {max_subcall_chars:,} chars. Do NOT loop over documents calling `llm_query()` on each one individually. Choose ONE analysis path per content set — if you send a document in full to `llm_query()`, do not also extract snippets from it and send those separately.
 
 **CRITICAL**: Execute immediately. Do NOT just describe what you will do - write actual code in ```repl blocks right now. Every response should contain executable code. Always `print()` counts and sizes after filtering steps (e.g., number of matches, combined content size) so you can verify your strategy before proceeding to `llm_query()` calls.
@@ -90,7 +94,7 @@ print(f"Combined {{len(relevant_parts)}} excerpts, {{len(combined):,}} chars tot
 # If combined exceeds limit, chunk into 2-3 batches (not one per doc)
 if len(combined) <= {max_subcall_chars:,}:
     final_answer = llm_query(
-        instruction="List key events involving this character chronologically with brief quotes. Note which document each event comes from.",
+        instruction="Analyze key events involving this character chronologically. For each event, provide direct quotes as evidence, explain its significance, and note which document it comes from.",
         content=combined
     )
 else:
@@ -99,11 +103,11 @@ else:
     mid = len(relevant_parts) // 2
     batch1 = "\n\n".join(relevant_parts[:mid])
     batch2 = "\n\n".join(relevant_parts[mid:])
-    r1 = llm_query(instruction="List key events involving this character with quotes.", content=batch1)
-    r2 = llm_query(instruction="List key events involving this character with quotes.", content=batch2)
+    r1 = llm_query(instruction="Analyze key events involving this character with direct quotes as evidence. Explain the significance of each event.", content=batch1)
+    r2 = llm_query(instruction="Analyze key events involving this character with direct quotes as evidence. Explain the significance of each event.", content=batch2)
     # Synthesize directly from batch results — no intermediate merge call needed
     final_answer = llm_query(
-        instruction="Synthesize these two sets of findings into a single chronological summary. Deduplicate any overlapping events.",
+        instruction="Synthesize these two sets of findings into a single chronological analysis. Deduplicate overlapping events, explain significance, and note any contradictions between sources.",
         content=f"Batch 1 findings:\n{{r1}}\n\nBatch 2 findings:\n{{r2}}"
     )
 print(final_answer)

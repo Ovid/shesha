@@ -367,3 +367,43 @@ def test_system_prompt_subcall_limit_is_1_to_3():
     assert "1-3" in prompt
     # Must NOT mention 3-5 as a target
     assert "3-5" not in prompt
+
+
+def test_system_prompt_discourages_brevity_in_subcall_instructions():
+    """System prompt steers LLM away from asking for concise/brief output."""
+    prompt = _render_default_prompt()
+    prompt_lower = prompt.lower()
+
+    # Must warn against brevity
+    assert "avoid" in prompt_lower and "brief" in prompt_lower
+    # Must value depth over brevity
+    assert "depth" in prompt_lower
+
+
+def test_system_prompt_encourages_mitigations():
+    """System prompt tells LLM to ask for mitigations/recommendations."""
+    prompt = _render_default_prompt()
+    prompt_lower = prompt.lower()
+
+    assert "mitigation" in prompt_lower or "recommendation" in prompt_lower
+
+
+def test_system_prompt_example_instructions_use_analyze_not_list():
+    """Example llm_query instructions model analytical depth, not listing."""
+    prompt = _render_default_prompt()
+
+    # Example instructions should use "Analyze" not "List"
+    # The examples are inside llm_query() calls in the code blocks
+    assert 'instruction="Analyze' in prompt
+    assert 'instruction="List' not in prompt
+
+
+def test_system_prompt_depth_through_instruction_quality():
+    """System prompt guides depth through better instructions, not more subcalls."""
+    prompt = _render_default_prompt()
+    prompt_lower = prompt.lower()
+
+    # Must mention concentrating subcalls / not making follow-up subcalls
+    assert "concentrate" in prompt_lower or "gather all" in prompt_lower
+    # Must mention instruction quality as the lever for depth
+    assert "instruction" in prompt_lower and "depth" in prompt_lower
