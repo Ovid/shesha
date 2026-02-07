@@ -88,6 +88,11 @@ def test_engine_verify_citations_can_be_disabled():
     assert engine.verify_citations is False
 
 
+def test_semantic_verification_step_type_exists():
+    """SEMANTIC_VERIFICATION step type exists."""
+    assert StepType.SEMANTIC_VERIFICATION.value == "semantic_verification"
+
+
 class TestRLMEngine:
     """Tests for RLMEngine."""
 
