@@ -1046,3 +1046,46 @@ class TestEngineVerification:
 
         step_types = [s.type for s in result.trace.steps]
         assert StepType.VERIFICATION in step_types
+
+    @patch("shesha.rlm.engine.ContainerExecutor")
+    @patch("shesha.rlm.engine.LLMClient")
+    def test_engine_records_verification_error_in_trace(
+        self,
+        mock_llm_cls: MagicMock,
+        mock_executor_cls: MagicMock,
+    ) -> None:
+        """Verification exception is recorded as a VERIFICATION trace step."""
+        mock_llm = MagicMock()
+        mock_llm.complete.return_value = MagicMock(
+            content='```repl\nFINAL("Doc 0 answer")\n```',
+            prompt_tokens=100,
+            completion_tokens=50,
+            total_tokens=150,
+        )
+        mock_llm_cls.return_value = mock_llm
+
+        mock_executor = MagicMock()
+        mock_executor.is_alive = True
+        mock_executor.execute.side_effect = [
+            # First call: FINAL answer
+            MagicMock(
+                status="ok",
+                stdout="",
+                stderr="",
+                error=None,
+                final_answer="Doc 0 answer",
+            ),
+            # Second call: verification raises
+            ValueError("Could not parse verification output: no valid JSON found"),
+        ]
+        mock_executor_cls.return_value = mock_executor
+
+        engine = RLMEngine(model="test-model", verify_citations=True)
+        result = engine.query(documents=["Doc content"], question="What?")
+
+        assert result.answer == "Doc 0 answer"
+        assert result.verification is None
+        # Error should be recorded in a VERIFICATION trace step
+        verification_steps = [s for s in result.trace.steps if s.type == StepType.VERIFICATION]
+        assert len(verification_steps) == 1
+        assert "Could not parse verification output" in verification_steps[0].content

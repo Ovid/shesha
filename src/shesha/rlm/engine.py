@@ -336,8 +336,21 @@ class RLMEngine:
                                 _write_step(step)
                                 if on_progress:
                                     on_progress(StepType.VERIFICATION, iteration, vresult.stdout)
-                        except Exception:
-                            pass  # Verification failure doesn't affect answer delivery
+                        except Exception as exc:
+                            # Verification failure doesn't affect answer delivery,
+                            # but record the error for diagnostics.
+                            step = trace.add_step(
+                                type=StepType.VERIFICATION,
+                                content=f"Verification error: {exc}",
+                                iteration=iteration,
+                            )
+                            _write_step(step)
+                            if on_progress:
+                                on_progress(
+                                    StepType.VERIFICATION,
+                                    iteration,
+                                    f"Verification error: {exc}",
+                                )
 
                     query_result = QueryResult(
                         answer=final_answer,
