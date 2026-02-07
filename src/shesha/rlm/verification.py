@@ -46,14 +46,19 @@ _CITATION_PATTERNS = [
 
 def extract_citations(text: str) -> list[int]:
     """Extract unique doc IDs from an answer, preserving first-appearance order."""
-    seen: set[int] = set()
-    result: list[int] = []
+    # Collect all matches with their text position across all patterns
+    matches: list[tuple[int, int]] = []  # (position, doc_id)
     for pattern in _CITATION_PATTERNS:
         for match in pattern.finditer(text):
-            doc_id = int(match.group(1))
-            if doc_id not in seen:
-                seen.add(doc_id)
-                result.append(doc_id)
+            matches.append((match.start(), int(match.group(1))))
+    matches.sort()
+
+    seen: set[int] = set()
+    result: list[int] = []
+    for _, doc_id in matches:
+        if doc_id not in seen:
+            seen.add(doc_id)
+            result.append(doc_id)
     return result
 
 

@@ -110,6 +110,11 @@ class TestExtractCitations:
         ids = extract_citations("Doc 10, then Doc 2, then Doc 10 again.")
         assert ids == [10, 2]
 
+    def test_mixed_format_preserves_textual_order(self) -> None:
+        """Mixed citation formats preserve textual order, not pattern order."""
+        ids = extract_citations("First context[2] then Doc 1.")
+        assert ids == [2, 1]
+
 
 class TestExtractQuotes:
     """Tests for extract_quotes()."""
