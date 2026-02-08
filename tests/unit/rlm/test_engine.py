@@ -577,6 +577,121 @@ class TestRLMEngine:
         last_step = sem_steps[-1].content
         assert "error" in last_step.lower() or "Could not parse" in last_step
 
+    @patch("shesha.rlm.engine.LLMClient")
+    @patch("shesha.rlm.engine.ContainerExecutor")
+    def test_semantic_verification_wraps_documents_in_untrusted_tags(
+        self,
+        mock_executor_cls: MagicMock,
+        mock_llm_cls: MagicMock,
+    ) -> None:
+        """Verification prompts wrap cited documents in untrusted content tags."""
+        verification_findings = json.dumps(
+            {
+                "findings": [
+                    {
+                        "finding_id": "F1",
+                        "original_claim": "Claim",
+                        "confidence": "high",
+                        "reason": "Confirmed.",
+                        "evidence_classification": "code_analysis",
+                        "flags": [],
+                    }
+                ]
+            }
+        )
+
+        mock_llm = MagicMock()
+        mock_llm.complete.side_effect = [
+            # Main query
+            MagicMock(
+                content='```repl\nFINAL("## F1: Claim\\nSee Doc 0.")\n```',
+                prompt_tokens=100,
+                completion_tokens=50,
+                total_tokens=150,
+            ),
+            # Layer 1 verification
+            MagicMock(
+                content=verification_findings,
+                prompt_tokens=200,
+                completion_tokens=100,
+                total_tokens=300,
+            ),
+        ]
+        mock_llm_cls.return_value = mock_llm
+
+        mock_executor = MagicMock()
+        mock_executor.is_alive = True
+        mock_executor.execute.return_value = MagicMock(
+            status="ok",
+            stdout="",
+            stderr="",
+            error=None,
+            final_answer="## F1: Claim\nSee Doc 0.",
+        )
+        mock_executor_cls.return_value = mock_executor
+
+        engine = RLMEngine(model="test-model", verify=True, verify_citations=False)
+        engine.query(
+            documents=["Untrusted doc content here"],
+            question="Analyze",
+            doc_names=["notes.txt"],
+        )
+
+        # Layer 1 verification is the 2nd LLM call (index 1)
+        layer1_call = mock_llm.complete.call_args_list[1]
+        layer1_prompt = layer1_call.kwargs["messages"][0]["content"]
+        assert "<untrusted_document_content>" in layer1_prompt
+        assert "</untrusted_document_content>" in layer1_prompt
+
+    @patch("shesha.rlm.engine.LLMClient")
+    @patch("shesha.rlm.engine.ContainerExecutor")
+    def test_semantic_verification_skips_when_cited_docs_exceed_size_limit(
+        self,
+        mock_executor_cls: MagicMock,
+        mock_llm_cls: MagicMock,
+    ) -> None:
+        """Verification is skipped when cited documents exceed size limit."""
+        mock_llm = MagicMock()
+        mock_llm.complete.side_effect = [
+            # Main query
+            MagicMock(
+                content='```repl\nFINAL("See Doc 0.")\n```',
+                prompt_tokens=100,
+                completion_tokens=50,
+                total_tokens=150,
+            ),
+        ]
+        mock_llm_cls.return_value = mock_llm
+
+        mock_executor = MagicMock()
+        mock_executor.is_alive = True
+        mock_executor.execute.return_value = MagicMock(
+            status="ok",
+            stdout="",
+            stderr="",
+            error=None,
+            final_answer="See Doc 0.",
+        )
+        mock_executor_cls.return_value = mock_executor
+
+        # Set a very small content limit
+        engine = RLMEngine(
+            model="test-model",
+            verify=True,
+            verify_citations=False,
+            max_subcall_content_chars=10,
+        )
+        result = engine.query(
+            documents=["A" * 100],
+            question="Analyze",
+            doc_names=["big.txt"],
+        )
+
+        # Verification should be skipped (not errored)
+        assert result.semantic_verification is None
+        # Only 1 LLM call (main query), no verification calls
+        assert mock_llm.complete.call_count == 1
+
 
 class TestDeadExecutorNoPool:
     """Tests for early exit when executor dies without pool."""

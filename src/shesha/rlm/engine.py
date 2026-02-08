@@ -169,10 +169,27 @@ class RLMEngine:
         if not cited_docs_text:
             return None
 
+        # Check cited docs size limit
+        if len(cited_docs_text) > self.max_subcall_content_chars:
+            step = trace.add_step(
+                type=StepType.SEMANTIC_VERIFICATION,
+                content=(
+                    f"Skipping verification: cited documents ({len(cited_docs_text):,} chars) "
+                    f"exceed limit of {self.max_subcall_content_chars:,} chars"
+                ),
+                iteration=iteration,
+            )
+            if on_step:
+                on_step(step)
+            return None
+
+        # Wrap cited docs in untrusted content tags (security boundary)
+        wrapped_docs = wrap_subcall_content(cited_docs_text)
+
         # Layer 1: Adversarial verification
         prompt = self.prompt_loader.render_verify_adversarial_prompt(
             findings=final_answer,
-            documents=cited_docs_text,
+            documents=wrapped_docs,
         )
 
         step = trace.add_step(
@@ -230,7 +247,7 @@ class RLMEngine:
             prompt = self.prompt_loader.render_verify_code_prompt(
                 previous_results=layer1_json,
                 findings=final_answer,
-                documents=cited_docs_text,
+                documents=wrapped_docs,
             )
 
             step = trace.add_step(
